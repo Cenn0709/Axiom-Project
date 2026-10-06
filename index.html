@@ -1,0 +1,2605 @@
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AXIOM — Kalkulator Presisi Tinggi</title>
+<meta name="description" content="Kalkulator ilmiah, konverter satuan, dan alat hitung praktis dalam satu antarmuka yang cepat, akurat, dan berani.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: '#0B0B0D',
+          ink2: '#141419',
+          paper: '#F4F1EA',
+          paper2: '#EAE5DA',
+          acid: '#D7FF3E',
+          flame: '#FF4B1F',
+          stone: '#8A857C'
+        },
+        fontFamily: {
+          display: ['"Space Grotesk"', 'sans-serif'],
+          body: ['Inter', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'monospace']
+        }
+      }
+    }
+  }
+</script>
+<style>
+  html { scroll-behavior: smooth; }
+  body {
+    background: #F4F1EA;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: #D7FF3E; color: #0B0B0D; }
+
+  /* ---------- Scroll progress ---------- */
+  #progress {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+    background: linear-gradient(90deg, #D7FF3E 0%, #FF4B1F 100%);
+    z-index: 100; transition: width .12s linear;
+  }
+
+  /* ---------- Kinetic hero type ---------- */
+  .line { display: block; overflow: hidden; padding-bottom: .08em; }
+  .word {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(110%) rotate(5deg);
+    animation: wordIn 1s cubic-bezier(.16,1,.3,1) forwards;
+    animation-delay: var(--d, 0s);
+  }
+  @keyframes wordIn {
+    to { opacity: 1; transform: translateY(0) rotate(0deg); }
+  }
+
+  /* ---------- Reveal on scroll ---------- */
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity .85s cubic-bezier(.16,1,.3,1), transform .85s cubic-bezier(.16,1,.3,1);
+  }
+  .reveal.in { opacity: 1; transform: none; }
+  .reveal-left { opacity: 0; transform: translateX(-36px); transition: opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1); }
+  .reveal-left.in { opacity: 1; transform: none; }
+  .reveal-scale { opacity: 0; transform: scale(.94); transition: opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1); }
+  .reveal-scale.in { opacity: 1; transform: none; }
+
+  /* ---------- Marquee ---------- */
+  .marquee { overflow: hidden; white-space: nowrap; }
+  .marquee-track {
+    display: inline-flex; align-items: center; gap: 2.6rem;
+    animation: marquee 34s linear infinite;
+    will-change: transform;
+  }
+  .marquee:hover .marquee-track { animation-play-state: paused; }
+  @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    position: relative; overflow: hidden;
+    display: inline-flex; align-items: center; justify-content: center; gap: .75rem;
+    font-weight: 600; letter-spacing: -0.01em;
+    border-radius: 999px;
+    transition: transform .35s cubic-bezier(.16,1,.3,1), background .3s, color .3s, box-shadow .3s;
+    will-change: transform;
+  }
+  .btn-acid { background: #D7FF3E; color: #0B0B0D; box-shadow: 0 12px 34px rgba(215,255,62,.28); }
+  .btn-acid:hover { box-shadow: 0 20px 46px rgba(215,255,62,.4); }
+  .btn-flame { background: #FF4B1F; color: #fff; box-shadow: 0 12px 34px rgba(255,75,31,.3); }
+  .btn-flame:hover { box-shadow: 0 20px 46px rgba(255,75,31,.42); }
+  .btn-ghost { border: 1.5px solid rgba(11,11,13,.22); color: #0B0B0D; }
+  .btn-ghost:hover { background: #0B0B0D; color: #F4F1EA; border-color: #0B0B0D; }
+  .btn-ghost-light { border: 1.5px solid rgba(244,241,234,.28); color: #F4F1EA; }
+  .btn-ghost-light:hover { background: #F4F1EA; color: #0B0B0D; }
+
+  .ripple {
+    position: absolute; border-radius: 50%; transform: scale(0);
+    background: rgba(255,255,255,.35); pointer-events: none;
+    animation: ripple .6s ease-out forwards;
+  }
+  @keyframes ripple { to { transform: scale(2.6); opacity: 0; } }
+
+  /* ---------- Calculator keys ---------- */
+  .key {
+    position: relative; overflow: hidden;
+    border-radius: 18px;
+    padding: 1.05rem .25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.3rem; font-weight: 600;
+    background: #1A1A20; color: #F4F1EA;
+    border: 1px solid rgba(244,241,234,.07);
+    transition: transform .22s cubic-bezier(.16,1,.3,1), background .22s, color .22s, box-shadow .22s;
+    user-select: none;
+  }
+  .key:hover { transform: translateY(-4px); background: #26262E; box-shadow: 0 16px 30px rgba(0,0,0,.4); }
+  .key:active, .key.pressed { transform: translateY(0) scale(.94); }
+  .key-op { background: #26262E; color: #D7FF3E; }
+  .key-op:hover { background: #32323c; }
+  .key-fn { background: #121217; color: #B6B2A8; font-size: .98rem; font-weight: 500; }
+  .key-fn:hover { color: #F4F1EA; }
+  .key-eq { background: #D7FF3E; color: #0B0B0D; box-shadow: 0 14px 30px rgba(215,255,62,.24); }
+  .key-eq:hover { background: #e6ff69; }
+  .key-ac { background: #FF4B1F; color: #fff; }
+  .key-ac:hover { background: #ff6238; }
+
+  /* ---------- Display ---------- */
+  .display-shell {
+    background:
+      radial-gradient(120% 130% at 100% 0%, rgba(215,255,62,.10) 0%, rgba(215,255,62,0) 55%),
+      linear-gradient(160deg, #101015 0%, #0B0B0D 100%);
+    border: 1px solid rgba(244,241,234,.08);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 30px 70px rgba(0,0,0,.28);
+  }
+  .ghost { opacity: .55; }
+  .flash { animation: flash .55s cubic-bezier(.16,1,.3,1); }
+  @keyframes flash {
+    0% { transform: scale(.96); opacity: .35; }
+    60% { transform: scale(1.015); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .shake { animation: shake .5s cubic-bezier(.36,.07,.19,.97); }
+  @keyframes shake {
+    10%, 90% { transform: translateX(-2px); }
+    20%, 80% { transform: translateX(4px); }
+    30%, 50%, 70% { transform: translateX(-8px); }
+    40%, 60% { transform: translateX(8px); }
+  }
+
+  /* ---------- Floating hero chips ---------- */
+  .float-a { animation: floatA 7s ease-in-out infinite; }
+  .float-b { animation: floatB 9s ease-in-out infinite; }
+  @keyframes floatA {
+    0%, 100% { transform: translate3d(0,0,0) rotate(-3deg); }
+    50% { transform: translate3d(0,-16px,0) rotate(1deg); }
+  }
+  @keyframes floatB {
+    0%, 100% { transform: translate3d(0,0,0) rotate(4deg); }
+    50% { transform: translate3d(0,14px,0) rotate(-2deg); }
+  }
+  .spin-slow { animation: spin 26s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- Cards / panels ---------- */
+  .card-lift {
+    transition: transform .5s cubic-bezier(.16,1,.3,1), box-shadow .5s, border-color .4s;
+    will-change: transform;
+  }
+  .card-lift:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 34px 70px rgba(11,11,13,.18);
+    border-color: rgba(11,11,13,.2);
+  }
+  .dark-card {
+    background: linear-gradient(155deg, #17171D 0%, #0E0E12 100%);
+    border: 1px solid rgba(244,241,234,.09);
+    transition: transform .5s cubic-bezier(.16,1,.3,1), border-color .4s, background .4s;
+  }
+  .dark-card:hover { transform: translateY(-10px); border-color: rgba(215,255,62,.38); }
+
+  /* ---------- Tabs ---------- */
+  .tab {
+    position: relative;
+    transition: color .3s, background .3s, transform .3s;
+  }
+  .tab.active { background: #0B0B0D; color: #F4F1EA; }
+  .tab:not(.active):hover { background: rgba(11,11,13,.08); }
+
+  /* ---------- Sliders ---------- */
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 6px; border-radius: 999px;
+    background: rgba(11,11,13,.14);
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #0B0B0D; border: 4px solid #D7FF3E;
+    cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.24);
+    transition: transform .18s ease;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.12); }
+  input[type="range"]::-moz-range-thumb {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #0B0B0D; border: 4px solid #D7FF3E; cursor: pointer;
+  }
+  input[type="range"].flame-range::-webkit-slider-thumb { border-color: #FF4B1F; background: #fff; }
+  input[type="range"].flame-range::-moz-range-thumb { border-color: #FF4B1F; background: #fff; }
+
+  /* ---------- Select / inputs ---------- */
+  .field {
+    width: 100%;
+    background: #fff;
+    border: 1.5px solid rgba(11,11,13,.14);
+    border-radius: 14px;
+    padding: .85rem 1rem;
+    font-weight: 500;
+    transition: border-color .25s, box-shadow .25s;
+  }
+  .field:focus {
+    outline: none;
+    border-color: #0B0B0D;
+    box-shadow: 0 0 0 4px rgba(215,255,62,.4);
+  }
+
+  /* ---------- FAQ ---------- */
+  .faq-a {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .55s cubic-bezier(.16,1,.3,1), opacity .45s ease, padding .45s ease;
+    opacity: 0;
+  }
+  .faq-item.open .faq-a { opacity: 1; }
+  .faq-item .plus { transition: transform .45s cubic-bezier(.16,1,.3,1); }
+  .faq-item.open .plus { transform: rotate(135deg); }
+  .faq-item { transition: background .35s, border-color .35s; }
+  .faq-item.open { background: #0B0B0D; border-color: #0B0B0D; }
+  .faq-item.open .faq-q-text { color: #F4F1EA; }
+  .faq-item.open .plus { color: #D7FF3E; }
+
+  /* ---------- Chart ---------- */
+  .chart-line {
+    stroke-dasharray: var(--len);
+    stroke-dashoffset: var(--len);
+    transition: stroke-dashoffset 2.1s cubic-bezier(.16,1,.3,1);
+  }
+  .chart-line.drawn { stroke-dashoffset: 0; }
+  .chart-area { opacity: 0; transition: opacity 1.2s ease .5s; }
+  .chart-area.drawn { opacity: 1; }
+  .chart-dot { opacity: 0; transform: scale(.4); transform-origin: center; transition: opacity .5s ease, transform .5s cubic-bezier(.16,1,.3,1); }
+  .chart-dot.drawn { opacity: 1; transform: scale(1); }
+
+  /* ---------- Nav ---------- */
+  #nav { transition: background .45s ease, box-shadow .45s ease, padding .45s ease, border-color .45s; }
+  #nav.scrolled {
+    background: rgba(244,241,234,.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 12px 40px rgba(11,11,13,.1);
+    border-color: rgba(11,11,13,.08);
+  }
+  .nav-link { position: relative; }
+  .nav-link::after {
+    content: ""; position: absolute; left: 0; bottom: -6px;
+    width: 100%; height: 2px; background: #FF4B1F;
+    transform: scaleX(0); transform-origin: right;
+    transition: transform .4s cubic-bezier(.16,1,.3,1);
+  }
+  .nav-link:hover::after { transform: scaleX(1); transform-origin: left; }
+
+  #mobileMenu { max-height: 0; overflow: hidden; transition: max-height .5s cubic-bezier(.16,1,.3,1); }
+  #mobileMenu.open { max-height: 380px; }
+
+  /* ---------- Misc ---------- */
+  .noise {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+    opacity: .045; pointer-events: none;
+  }
+  .stripe-bg {
+    background-image: repeating-linear-gradient(-45deg, rgba(11,11,13,.07) 0 2px, transparent 2px 11px);
+  }
+  .hist-item { transition: background .3s, transform .3s, border-color .3s; }
+  .hist-item:hover { background: rgba(215,255,62,.12); transform: translateX(4px); border-color: rgba(215,255,62,.3); }
+  .tool-pill {
+    transition: background .3s, color .3s, transform .3s, border-color .3s;
+  }
+  .tool-pill.active { background: #FF4B1F; color: #fff; border-color: #FF4B1F; transform: translateY(-2px); }
+  .tool-pill:not(.active):hover { border-color: #0B0B0D; transform: translateY(-2px); }
+
+  .num-flash { animation: numFlash .45s ease; }
+  @keyframes numFlash {
+    0% { transform: translateY(4px); opacity: .45; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+    .reveal, .reveal-left, .reveal-scale { opacity: 1 !important; transform: none !important; }
+  }
+</style>
+</head>
+<body class="font-body text-ink">
+
+<div id="progress"></div>
+
+<!-- ===================== NAV ===================== -->
+<header id="nav" class="fixed top-0 inset-x-0 z-50 border-b border-transparent">
+  <div class="max-w-[1280px] mx-auto px-5 sm:px-8">
+    <div class="flex items-center justify-between h-[72px]">
+      <a href="#home" class="flex items-center gap-2.5 group">
+        <div class="w-10 h-10 rounded-[13px] bg-ink flex items-center justify-center overflow-hidden relative">
+          <span class="text-acid font-display font-bold text-lg leading-none">A</span>
+          <span class="absolute inset-0 bg-acid translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(.16,1,.3,1)]"></span>
+          <span class="absolute inset-0 flex items-center justify-center text-ink font-display font-bold text-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">A</span>
+        </div>
+        <div class="leading-none">
+          <div class="font-display font-bold text-[19px] tracking-tight">AXIOM</div>
+          <div class="text-[9px] uppercase tracking-[0.22em] text-stone font-semibold">Kalkulator Presisi</div>
+        </div>
+      </a>
+
+      <nav class="hidden lg:flex items-center gap-9 text-[14px] font-medium">
+        <a href="#calculator" class="nav-link hover:text-flame transition-colors">Kalkulator</a>
+        <a href="#converter" class="nav-link hover:text-flame transition-colors">Konverter</a>
+        <a href="#tools" class="nav-link hover:text-flame transition-colors">Alat Hitung</a>
+        <a href="#features" class="nav-link hover:text-flame transition-colors">Fitur</a>
+        <a href="#faq" class="nav-link hover:text-flame transition-colors">FAQ</a>
+      </nav>
+
+      <div class="flex items-center gap-3">
+        <a href="#calculator" class="btn btn-ink bg-ink text-paper px-6 py-3 text-[13.5px] hidden sm:inline-flex magnetic" style="background:#0B0B0D;color:#F4F1EA">
+          Mulai Hitung
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <button id="menuBtn" class="lg:hidden w-11 h-11 rounded-[13px] border border-ink/15 flex items-center justify-center" aria-label="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div id="mobileMenu" class="lg:hidden bg-paper border-t border-ink/10">
+    <div class="px-6 py-5 flex flex-col gap-1">
+      <a href="#calculator" class="mobile-link py-3 border-b border-ink/8 font-display font-semibold text-lg">Kalkulator</a>
+      <a href="#converter" class="mobile-link py-3 border-b border-ink/8 font-display font-semibold text-lg">Konverter</a>
+      <a href="#tools" class="mobile-link py-3 border-b border-ink/8 font-display font-semibold text-lg">Alat Hitung</a>
+      <a href="#features" class="mobile-link py-3 border-b border-ink/8 font-display font-semibold text-lg">Fitur</a>
+      <a href="#faq" class="mobile-link py-3 font-display font-semibold text-lg">FAQ</a>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- ===================== HERO ===================== -->
+<section id="home" class="relative bg-ink text-paper pt-[112px] sm:pt-[130px] pb-16 sm:pb-24 overflow-hidden">
+  <div class="absolute inset-0 noise"></div>
+  <div class="absolute -top-40 -right-40 w-[620px] h-[620px] rounded-full pointer-events-none"
+       style="background:radial-gradient(circle, rgba(215,255,62,.13) 0%, rgba(215,255,62,0) 65%)"></div>
+  <div class="absolute bottom-0 left-0 w-[520px] h-[520px] rounded-full pointer-events-none"
+       style="background:radial-gradient(circle, rgba(255,75,31,.16) 0%, rgba(255,75,31,0) 68%)"></div>
+
+  <div class="relative max-w-[1280px] mx-auto px-5 sm:px-8">
+    <div class="grid lg:grid-cols-[1.05fr_.95fr] gap-12 lg:gap-14 items-center">
+
+      <!-- Copy -->
+      <div>
+        <div class="inline-flex items-center gap-2.5 rounded-full border border-paper/15 bg-paper/5 px-4 py-2 mb-8 opacity-0" style="animation:wordIn .8s cubic-bezier(.16,1,.3,1) forwards .1s">
+          <span class="w-2 h-2 rounded-full bg-acid"></span>
+          <span class="text-[11px] uppercase tracking-[0.22em] font-semibold text-paper/80">Presisi 12 digit · Tanpa iklan</span>
+        </div>
+
+        <h1 class="font-display font-bold leading-[.86] tracking-[-0.045em]"
+            style="font-size: clamp(2.95rem, 9.2vw, 7.4rem)">
+          <span class="line"><span class="word" style="--d:.12s">HITUNG</span> <span class="word" style="--d:.22s">SEMUA,</span></span>
+          <span class="line"><span class="word" style="--d:.32s">TANPA</span> <span class="word text-acid" style="--d:.42s">RIBET.</span></span>
+        </h1>
+
+        <p class="mt-8 text-[17px] sm:text-[19px] leading-[1.62] text-paper/70 max-w-[540px] opacity-0"
+           style="animation:wordIn .9s cubic-bezier(.16,1,.3,1) forwards .58s">
+          Kalkulator ilmiah, konverter satuan, dan alat keuangan dalam satu antarmuka yang cepat,
+          akurat, dan dirancang untuk cara berpikir modern.
+        </p>
+
+        <div class="mt-9 flex flex-wrap items-center gap-3.5 opacity-0" style="animation:wordIn .9s cubic-bezier(.16,1,.3,1) forwards .72s">
+          <a href="#calculator" class="btn btn-acid px-8 py-4 text-[15px] magnetic">
+            Mulai Menghitung
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a href="#tools" class="btn btn-ghost-light px-8 py-4 text-[15px] magnetic">Jelajahi Alat Hitung</a>
+        </div>
+
+        <div class="mt-11 grid grid-cols-3 gap-5 max-w-[520px] opacity-0" style="animation:wordIn .9s cubic-bezier(.16,1,.3,1) forwards .86s">
+          <div>
+            <div class="font-mono font-bold text-[27px] text-acid leading-none"><span class="count" data-count="12">0</span></div>
+            <div class="text-[11px] uppercase tracking-[0.15em] text-paper/50 mt-2 font-semibold">Digit presisi</div>
+          </div>
+          <div>
+            <div class="font-mono font-bold text-[27px] text-acid leading-none"><span class="count" data-count="40">0</span>+</div>
+            <div class="text-[11px] uppercase tracking-[0.15em] text-paper/50 mt-2 font-semibold">Fungsi ilmiah</div>
+          </div>
+          <div>
+            <div class="font-mono font-bold text-[27px] text-acid leading-none"><span class="count" data-count="7">0</span></div>
+            <div class="text-[11px] uppercase tracking-[0.15em] text-paper/50 mt-2 font-semibold">Kategori satuan</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visual -->
+      <div class="relative" id="heroVisual">
+        <div class="relative rounded-[28px] overflow-hidden border border-paper/12 shadow-[0_50px_110px_rgba(0,0,0,.55)]">
+          <img
+            src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1100&q=80"
+            alt="Dashboard analitik pada layar laptop"
+            class="w-full h-[380px] sm:h-[500px] object-cover"
+            loading="eager">
+          <div class="absolute inset-0" style="background:linear-gradient(180deg, rgba(11,11,13,.15) 0%, rgba(11,11,13,.82) 100%)"></div>
+
+          <div class="absolute left-6 right-6 bottom-6">
+            <div class="rounded-[19px] bg-paper/95 text-ink px-5 py-4 backdrop-blur-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-[10px] uppercase tracking-[0.18em] text-stone font-semibold">Hasil langsung</div>
+                  <div class="font-mono font-bold text-[27px] leading-tight tracking-tight" id="heroResult">1.284.900</div>
+                </div>
+                <div class="w-11 h-11 rounded-[13px] bg-acid flex items-center justify-center">
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#0B0B0D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                </div>
+              </div>
+              <div class="mt-3 h-[7px] rounded-full bg-ink/10 overflow-hidden">
+                <div class="h-full rounded-full bg-flame" id="heroBar" style="width:22%; transition:width 1.4s cubic-bezier(.16,1,.3,1)"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- floating chips -->
+        <div class="float-a absolute -left-3 sm:-left-10 top-10 rounded-2xl bg-acid text-ink px-5 py-3.5 shadow-[0_22px_50px_rgba(215,255,62,.3)]">
+          <div class="text-[9.5px] uppercase tracking-[0.19em] font-semibold opacity-70">Akurasi</div>
+          <div class="font-mono font-bold text-[19px] leading-tight">99.99%</div>
+        </div>
+
+        <div class="float-b absolute -right-2 sm:-right-6 top-1/2 rounded-2xl bg-paper text-ink px-5 py-3.5 shadow-[0_22px_50px_rgba(0,0,0,.35)]">
+          <div class="text-[9.5px] uppercase tracking-[0.19em] font-semibold text-stone">Kecepatan</div>
+          <div class="font-mono font-bold text-[19px] leading-tight">&lt; 1 ms</div>
+        </div>
+
+        <div class="absolute -bottom-6 left-6 w-[86px] h-[86px] hidden sm:flex items-center justify-center">
+          <svg class="spin-slow absolute inset-0" viewBox="0 0 100 100" fill="none">
+            <circle cx="50" cy="50" r="45" stroke="rgba(244,241,234,.22)" stroke-width="1.5" stroke-dasharray="6 9"/>
+          </svg>
+          <div class="w-[52px] h-[52px] rounded-full bg-flame flex items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===================== MARQUEE ===================== -->
+<div class="marquee bg-acid text-ink py-4 border-y-2 border-ink">
+  <div class="marquee-track font-display font-bold uppercase tracking-[-0.01em]" style="font-size:clamp(1.05rem,2.5vw,1.75rem)">
+    <span class="flex items-center gap-[2.6rem]">
+      <span>Persentase</span><span class="opacity-40">◆</span>
+      <span>Pinjaman</span><span class="opacity-40">◆</span>
+      <span>Trigonometri</span><span class="opacity-40">◆</span>
+      <span>Konversi Satuan</span><span class="opacity-40">◆</span>
+      <span>Logaritma</span><span class="opacity-40">◆</span>
+      <span>BMI</span><span class="opacity-40">◆</span>
+      <span>Statistik</span><span class="opacity-40">◆</span>
+    </span>
+    <span class="flex items-center gap-[2.6rem]" aria-hidden="true">
+      <span>Persentase</span><span class="opacity-40">◆</span>
+      <span>Pinjaman</span><span class="opacity-40">◆</span>
+      <span>Trigonometri</span><span class="opacity-40">◆</span>
+      <span>Konversi Satuan</span><span class="opacity-40">◆</span>
+      <span>Logaritma</span><span class="opacity-40">◆</span>
+      <span>BMI</span><span class="opacity-40">◆</span>
+      <span>Statistik</span><span class="opacity-40">◆</span>
+    </span>
+  </div>
+</div>
+
+<!-- ===================== KALKULATOR ===================== -->
+<section id="calculator" class="relative py-20 sm:py-28 bg-paper overflow-hidden">
+  <div class="absolute top-0 right-0 w-[460px] h-[460px] stripe-bg rounded-full opacity-70 pointer-events-none"></div>
+
+  <div class="relative max-w-[1280px] mx-auto px-5 sm:px-8">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 mb-12">
+      <div class="max-w-[620px]">
+        <div class="flex items-center gap-3 mb-5 reveal">
+          <span class="w-9 h-[3px] bg-flame"></span>
+          <span class="text-[11px] uppercase tracking-[0.24em] font-semibold text-stone">01 — Kalkulator</span>
+        </div>
+        <h2 class="font-display font-bold leading-[.92] tracking-[-0.04em] reveal" style="font-size:clamp(2.5rem,6.4vw,4.9rem)">
+          SATU MESIN HITUNG<br><span class="text-flame">UNTUK SEMUANYA.</span>
+        </h2>
+      </div>
+      <p class="text-[16.5px] leading-[1.7] text-ink/70 max-w-[380px] reveal">
+        Mode standar, ilmiah, riwayat ekspresi, memori, dan dukungan keyboard penuh.
+        Semua berjalan langsung di perangkat Anda — tanpa koneksi, tanpa penundaan.
+      </p>
+    </div>
+
+    <div class="grid lg:grid-cols-[1.55fr_1fr] gap-7">
+
+      <!-- Calculator panel -->
+      <div class="reveal-scale rounded-[30px] bg-ink p-5 sm:p-8 shadow-[0_46px_100px_rgba(11,11,13,.3)]">
+        <!-- Display -->
+        <div class="display-shell rounded-[22px] px-6 sm:px-8 py-7 sm:py-9 mb-6" id="displayShell">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <button id="angleToggle" class="text-[10.5px] font-mono font-bold uppercase tracking-[0.16em] px-3 py-1.5 rounded-full border border-acid/35 text-acid hover:bg-acid hover:text-ink transition-colors duration-300">DEG</button>
+              <button id="memToggle" class="text-[10.5px] font-mono font-bold uppercase tracking-[0.16em] px-3 py-1.5 rounded-full border border-paper/15 text-paper/60 hover:border-acid/50 hover:text-acid transition-colors duration-300">M: 0</button>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-acid/80"></span>
+              <span class="w-2 h-2 rounded-full bg-paper/25"></span>
+              <span class="w-2 h-2 rounded-full bg-paper/25"></span>
+            </div>
+          </div>
+
+          <div class="text-right font-mono text-paper/45 text-[15px] sm:text-[17px] min-h-[26px] break-all leading-relaxed" id="exprDisplay">0</div>
+          <div class="text-right font-mono font-bold text-paper tracking-[-0.03em] leading-[1.05] mt-2 break-all"
+               id="resultDisplay"
+               style="font-size:clamp(2.4rem,7vw,4.35rem)">0</div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex flex-wrap items-center gap-2 mb-5">
+          <button class="tab active px-5 py-2.5 rounded-full text-[12.5px] font-semibold border border-paper/12 text-paper/70" data-tab="standard">Standar</button>
+          <button class="tab px-5 py-2.5 rounded-full text-[12.5px] font-semibold border border-paper/12 text-paper/70" data-tab="scientific">Ilmiah</button>
+          <div class="ml-auto flex items-center gap-2">
+            <button id="clearHistBtn" class="text-[11px] uppercase tracking-[0.14em] font-semibold text-paper/45 hover:text-flame transition-colors px-3 py-2">Bersihkan</button>
+          </div>
+        </div>
+
+        <!-- Scientific pad -->
+        <div id="sciPad" class="grid grid-cols-4 sm:grid-cols-5 gap-2.5 mb-3.5" style="display:none">
+          <button class="key key-fn" data-fn="sin(">sin</button>
+          <button class="key key-fn" data-fn="cos(">cos</button>
+          <button class="key key-fn" data-fn="tan(">tan</button>
+          <button class="key key-fn" data-input="π">π</button>
+          <button class="key key-fn" data-input="e">e</button>
+
+          <button class="key key-fn" data-fn="ln(">ln</button>
+          <button class="key key-fn" data-fn="log(">log</button>
+          <button class="key key-fn" data-input="√(">√</button>
+          <button class="key key-fn" data-input="^">xʸ</button>
+          <button class="key key-fn" data-input="!">n!</button>
+
+          <button class="key key-fn" data-input="^2">x²</button>
+          <button class="key key-fn" data-input="^3">x³</button>
+          <button class="key key-fn" data-input="^−1">1/x</button>
+          <button class="key key-fn" data-fn="abs(">abs</button>
+          <button class="key key-fn" data-fn="exp(">exp</button>
+
+          <button class="key key-fn" data-input="(">(</button>
+          <button class="key key-fn" data-input=")">)</button>
+          <button class="key key-fn" data-act="ans">Ans</button>
+          <button class="key key-fn" data-act="mc">MC</button>
+          <button class="key key-fn" data-act="mr">MR</button>
+
+          <button class="key key-fn" data-act="mplus">M+</button>
+          <button class="key key-fn" data-act="mminus">M−</button>
+          <button class="key key-fn" data-fn="round(">rnd</button>
+          <button class="key key-fn" data-fn="sqrt(">√x</button>
+          <button class="key key-fn" data-input="%">%</button>
+        </div>
+
+        <!-- Standard pad -->
+        <div class="grid grid-cols-4 gap-2.5">
+          <button class="key key-ac" data-act="clear">AC</button>
+          <button class="key key-op" data-act="back">⌫</button>
+          <button class="key key-op" data-input="%">%</button>
+          <button class="key key-op" data-input="÷">÷</button>
+
+          <button class="key" data-input="7">7</button>
+          <button class="key" data-input="8">8</button>
+          <button class="key" data-input="9">9</button>
+          <button class="key key-op" data-input="×">×</button>
+
+          <button class="key" data-input="4">4</button>
+          <button class="key" data-input="5">5</button>
+          <button class="key" data-input="6">6</button>
+          <button class="key key-op" data-input="−">−</button>
+
+          <button class="key" data-input="1">1</button>
+          <button class="key" data-input="2">2</button>
+          <button class="key" data-input="3">3</button>
+          <button class="key key-op" data-input="+">+</button>
+
+          <button class="key key-op" data-act="sign">±</button>
+          <button class="key" data-input="0">0</button>
+          <button class="key" data-input=".">.</button>
+          <button class="key key-eq" data-act="equals">=</button>
+        </div>
+
+        <div class="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-paper/38 uppercase tracking-[0.14em] font-semibold">
+          <span>Keyboard aktif</span>
+          <span class="w-1 h-1 rounded-full bg-paper/25"></span>
+          <span>Enter = hasil</span>
+          <span class="w-1 h-1 rounded-full bg-paper/25"></span>
+          <span>Esc = hapus semua</span>
+        </div>
+      </div>
+
+      <!-- History + info -->
+      <div class="flex flex-col gap-7">
+        <div class="rounded-[26px] bg-white border border-ink/10 p-6 sm:p-7 card-lift">
+          <div class="flex items-center justify-between mb-5">
+            <h3 class="font-display font-bold text-[21px] tracking-tight">Riwayat Hitung</h3>
+            <span class="text-[10px] uppercase tracking-[0.16em] font-semibold text-stone bg-ink/6 px-3 py-1.5 rounded-full" id="histCount">0 entri</span>
+          </div>
+          <div id="historyList" class="flex flex-col gap-2.5 max-h-[330px] overflow-y-auto pr-1">
+            <div class="text-[14px] text-stone leading-relaxed py-6 text-center border border-dashed border-ink/12 rounded-2xl">
+              Belum ada perhitungan.<br>Mulai dari panel di samping.
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-[26px] bg-ink text-paper p-6 sm:p-7 relative overflow-hidden">
+          <div class="absolute -right-14 -top-14 w-48 h-48 rounded-full" style="background:radial-gradient(circle, rgba(255,75,31,.32) 0%, rgba(255,75,31,0) 70%)"></div>
+          <div class="relative">
+            <div class="text-[10px] uppercase tracking-[0.22em] font-semibold text-acid mb-3">Didukung penuh</div>
+            <h3 class="font-display font-bold text-[24px] leading-[1.12] tracking-tight mb-4">
+              Ekspresi kompleks diselesaikan seketika.
+            </h3>
+            <p class="text-paper/62 text-[14.5px] leading-[1.7]">
+              Kurung bersarang, pangkat, faktorial, trigonometri, logaritma, akar, dan konstanta —
+              semuanya diproses dengan mesin ekspresi bertingkat yang konsisten.
+            </p>
+            <div class="mt-6 grid grid-cols-2 gap-3">
+              <div class="rounded-2xl border border-paper/12 px-4 py-3.5">
+                <div class="font-mono font-bold text-[17px] text-acid">170!</div>
+                <div class="text-[10px] uppercase tracking-[0.15em] text-paper/45 mt-1 font-semibold">Batas faktorial</div>
+              </div>
+              <div class="rounded-2xl border border-paper/12 px-4 py-3.5">
+                <div class="font-mono font-bold text-[17px] text-acid">±1e12</div>
+                <div class="text-[10px] uppercase tracking-[0.15em] text-paper/45 mt-1 font-semibold">Rentang presisi</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FITUR ===================== -->
+<section id="features" class="relative bg-ink text-paper py-20 sm:py-28 overflow-hidden">
+  <div class="absolute inset-0 noise"></div>
+  <div class="relative max-w-[1280px] mx-auto px-5 sm:px-8">
+
+    <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center mb-20">
+      <div>
+        <div class="flex items-center gap-3 mb-6 reveal">
+          <span class="w-9 h-[3px] bg-acid"></span>
+          <span class="text-[11px] uppercase tracking-[0.24em] font-semibold text-paper/55">02 — Keunggulan</span>
+        </div>
+        <h2 class="font-display font-bold leading-[.92] tracking-[-0.042em] reveal"
+            style="font-size:clamp(2.5rem,6.6vw,5.1rem)">
+          DIRANCANG UNTUK<br><span class="text-acid">BERPIKIR CEPAT.</span>
+        </h2>
+        <p class="mt-7 text-[17px] leading-[1.72] text-paper/65 max-w-[520px] reveal">
+          Setiap detail dikurasi agar perhitungan terasa ringan: kontras tinggi untuk keterbacaan,
+          tipografi tegas untuk fokus, dan animasi halus yang memberi umpan balik tanpa mengganggu.
+        </p>
+
+        <div class="mt-9 space-y-5">
+          <div class="flex gap-4 reveal">
+            <div class="w-11 h-11 rounded-[13px] bg-acid/12 border border-acid/25 flex items-center justify-center shrink-0">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#D7FF3E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"/></svg>
+            </div>
+            <div>
+              <h4 class="font-display font-semibold text-[18px]">Respons instan</h4>
+              <p class="text-paper/58 text-[14.5px] leading-[1.65] mt-1.5">Pratinjau hasil diperbarui saat Anda mengetik, tanpa tombol tunggu.</p>
+            </div>
+          </div>
+          <div class="flex gap-4 reveal">
+            <div class="w-11 h-11 rounded-[13px] bg-flame/12 border border-flame/25 flex items-center justify-center shrink-0">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FF4B1F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            </div>
+            <div>
+              <h4 class="font-display font-semibold text-[18px]">Privasi terjaga</h4>
+              <p class="text-paper/58 text-[14.5px] leading-[1.65] mt-1.5">Semua perhitungan diproses di browser. Tidak ada data yang dikirim keluar.</p>
+            </div>
+          </div>
+          <div class="flex gap-4 reveal">
+            <div class="w-11 h-11 rounded-[13px] bg-paper/8 border border-paper/18 flex items-center justify-center shrink-0">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#F4F1EA" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M10 13h.01M14 13h.01M18 13h.01M8 17h8"/></svg>
+            </div>
+            <div>
+              <h4 class="font-display font-semibold text-[18px]">Keyboard penuh</h4>
+              <p class="text-paper/58 text-[14.5px] leading-[1.65] mt-1.5">Navigasi cepat memakai pintasan keyboard untuk produktivitas maksimal.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="relative reveal-scale">
+        <div class="rounded-[28px] overflow-hidden border border-paper/12">
+          <img
+            src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1100&q=80"
+            alt="Tim menganalisis data dan grafik"
+            class="w-full h-[420px] sm:h-[560px] object-cover"
+            loading="lazy">
+        </div>
+        <div class="absolute -bottom-7 left-5 right-5 sm:left-8 sm:right-8 rounded-[22px] bg-acid text-ink p-6 shadow-[0_30px_70px_rgba(0,0,0,.4)]">
+          <div class="flex items-end justify-between gap-6">
+            <div>
+              <div class="text-[10px] uppercase tracking-[0.2em] font-semibold opacity-65">Rata-rata waktu hitung</div>
+              <div class="font-mono font-bold text-[36px] leading-none mt-2 tracking-tight">
+                <span class="count" data-count="0.4" data-decimals="1">0.0</span>s
+              </div>
+            </div>
+            <svg width="120" height="46" viewBox="0 0 120 46" fill="none" class="shrink-0">
+              <path d="M2 40 C22 38, 28 22, 42 24 S68 8, 82 12 S108 2, 118 5" stroke="#0B0B0D" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="118" cy="5" r="4.5" fill="#FF4B1F"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature cards -->
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div class="dark-card rounded-[22px] p-7 reveal">
+        <div class="w-12 h-12 rounded-[15px] bg-acid flex items-center justify-center mb-6">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0B0B0D" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        </div>
+        <h3 class="font-display font-bold text-[20px] tracking-tight">Statistik Lengkap</h3>
+        <p class="text-paper/58 text-[14.5px] leading-[1.68] mt-3">Mean, median, standar deviasi, dan varians dari kumpulan data Anda.</p>
+      </div>
+      <div class="dark-card rounded-[22px] p-7 reveal">
+        <div class="w-12 h-12 rounded-[15px] bg-flame flex items-center justify-center mb-6">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+        </div>
+        <h3 class="font-display font-bold text-[20px] tracking-tight">Grafik Fungsi</h3>
+        <p class="text-paper/58 text-[14.5px] leading-[1.68] mt-3">Visualisasikan kurva matematika secara langsung dari ekspresi yang Anda masukkan.</p>
+      </div>
+      <div class="dark-card rounded-[22px] p-7 reveal">
+        <div class="w-12 h-12 rounded-[15px] bg-paper flex items-center justify-center mb-6">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0B0B0D" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+        </div>
+        <h3 class="font-display font-bold text-[20px] tracking-tight">Riwayat Otomatis</h3>
+        <p class="text-paper/58 text-[14.5px] leading-[1.68] mt-3">Setiap perhitungan tersimpan dan bisa dipakai ulang dengan satu ketukan.</p>
+      </div>
+      <div class="dark-card rounded-[22px] p-7 reveal">
+        <div class="w-12 h-12 rounded-[15px] bg-acid flex items-center justify-center mb-6">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0B0B0D" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M9 9h6v6H9z"/></svg>
+        </div>
+        <h3 class="font-display font-bold text-[20px] tracking-tight">Mode Gelap & Terang</h3>
+        <p class="text-paper/58 text-[14.5px] leading-[1.68] mt-3">Kontras tinggi yang nyaman dipandang, siang maupun malam.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== KONVERTER ===================== -->
+<section id="converter" class="relative py-20 sm:py-28 bg-paper2 overflow-hidden">
+  <div class="absolute inset-0 stripe-bg opacity-60"></div>
+  <div class="relative max-w-[1280px] mx-auto px-5 sm:px-8">
+
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 mb-12">
+      <div>
+        <div class="flex items-center gap-3 mb-5 reveal">
+          <span class="w-9 h-[3px] bg-flame"></span>
+          <span class="text-[11px] uppercase tracking-[0.24em] font-semibold text-stone">03 — Konverter</span>
+        </div>
+        <h2 class="font-display font-bold leading-[.92] tracking-[-0.042em] reveal"
+            style="font-size:clamp(2.5rem,6.4vw,4.9rem)">
+          SATUAN APAPUN,<br><span class="text-flame">SELESAI SEKETIKA.</span>
+        </h2>
+      </div>
+      <p class="text-[16.5px] leading-[1.72] text-ink/70 max-w-[370px] reveal">
+        Tujuh kategori satuan dengan faktor konversi resmi — panjang, massa, suhu, luas,
+        waktu, kecepatan, dan data.
+      </p>
+    </div>
+
+    <div class="grid lg:grid-cols-[1.25fr_1fr] gap-7">
+      <div class="rounded-[28px] bg-white border border-ink/10 p-6 sm:p-9 card-lift">
+        <div class="flex flex-wrap gap-2.5 mb-8" id="unitCats"></div>
+
+        <div class="grid sm:grid-cols-[1fr_auto_1fr] gap-5 sm:gap-4 items-end">
+          <div>
+            <label class="block text-[10.5px] uppercase tracking-[0.18em] font-semibold text-stone mb-2.5">Dari</label>
+            <select id="fromUnit" class="field"></select>
+            <input type="number" id="fromValue" class="field mt-3 font-mono text-[22px] font-bold" value="1" step="any" inputmode="decimal">
+          </div>
+
+          <div class="flex sm:flex-col items-center justify-center gap-3 py-2">
+            <button id="swapUnits" class="w-12 h-12 rounded-full bg-ink text-paper flex items-center justify-center hover:bg-flame transition-colors duration-300" aria-label="Tukar satuan">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16H3m0 0l4-4M3 16l4 4"/><path d="M17 8h4m0 0l-4-4m4 4l-4 4"/></svg>
+            </button>
+          </div>
+
+          <div>
+            <label class="block text-[10.5px] uppercase tracking-[0.18em] font-semibold text-stone mb-2.5">Ke</label>
+            <select id="toUnit" class="field"></select>
+            <div class="mt-3 rounded-[14px] bg-ink text-paper px-5 py-[14px] font-mono font-bold text-[22px] tracking-tight break-all" id="toValue">1</div>
+          </div>
+        </div>
+
+        <div class="mt-7 pt-7 border-t border-ink/10">
+          <div class="text-[10.5px] uppercase tracking-[0.18em] font-semibold text-stone mb-2">Rumus konversi</div>
+          <div class="font-mono text-[15px] text-ink/80 break-words" id="formulaText">1 Meter (m) = 1 Meter (m)</div>
+        </div>
+      </div>
+
+      <div class="rounded-[28px] bg-ink text-paper p-7 sm:p-9 relative overflow-hidden">
+        <div class="absolute -right-16 -bottom-16 w-64 h-64 rounded-full" style="background:radial-gradient(circle, rgba(215,255,62,.2) 0%, rgba(215,255,62,0) 70%)"></div>
+        <div class="relative">
+          <div class="text-[10px] uppercase tracking-[0.22em] font-semibold text-acid mb-4">Konversi cepat</div>
+          <div class="space-y-3.5" id="quickConv">
+            <div class="rounded-2xl border border-paper/12 px-5 py-4">
+              <div class="text-[11px] uppercase tracking-[0.15em] text-paper/45 font-semibold">1 kilometer</div>
+              <div class="font-mono font-bold text-[19px] text-acid mt-1.5">1.000 meter</div>
+            </div>
+            <div class="rounded-2xl border border-paper/12 px-5 py-4">
+              <div class="text-[11px] uppercase tracking-[0.15em] text-paper/45 font-semibold">1 kilogram</div>
+              <div class="font-mono font-bold text-[19px] text-acid mt-1.5">2,20462 pound</div>
+            </div>
+            <div class="rounded-2xl border border-paper/12 px-5 py-4">
+              <div class="text-[11px] uppercase tracking-[0.15em] text-paper/45 font-semibold">100 °Celsius</div>
+              <div class="font-mono font-bold text-[19px] text-acid mt-1.5">212 °Fahrenheit</div>
+            </div>
+            <div class="rounded-2xl border border-paper/12 px-5 py-4">
+              <div class="text-[11px] uppercase tracking-[0.15em] text-paper/45 font-semibold">1 Gigabyte</div>
+              <div class="font-mono font-bold text-[19px] text-acid mt-1.5">1.024 Megabyte</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== ALAT ===================== -->
+<section id="tools" class="relative py-20 sm:py-28 bg-paper overflow-hidden">
+  <div class="relative max-w-[1280px] mx-auto px-5 sm:px-8">
+    <div class="text-center max-w-[760px] mx-auto mb-14">
+      <div class="flex items-center justify-center gap-3 mb-5 reveal">
+        <span class="w-9 h-[3px] bg-acid" style="background:#0B0B0D"></span>
+        <span class="text-[11px] uppercase tracking-[0.24em] font-semibold text-stone">04 — Alat Praktis</span>
+      </div>
+      <h2 class="font-display font-bold leading-[.92] tracking-[-0.042em] reveal"
+          style="font-size:clamp(2.5rem,6.4vw,4.9rem)">
+        HITUNG HAL-HAL<br><span class="text-flame">YANG PENTING.</span>
+      </h2>
+      <p class="mt-6 text-[17px] leading-[1.72] text-ink/70 reveal">
+        Persentase, angsuran pinjaman, hingga indeks massa tubuh — semuanya diperbarui secara langsung saat Anda menggeser.
+      </p>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-6">
+
+      <!-- Persentase -->
+      <div class="rounded-[26px] bg-white border border-ink/10 p-7 sm:p-8 card-lift reveal">
+        <div class="flex items-center gap-3.5 mb-7">
+          <div class="w-12 h-12 rounded-[15px] bg-acid flex items-center justify-center">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0B0B0D" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5L5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+          </div>
+          <div>
+            <h3 class="font-display font-bold text-[21px] tracking-tight leading-tight">Kalkulator Persentase</h3>
+            <p class="text-stone text-[12.5px] mt-0.5">Tiga perhitungan sekaligus</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[10.5px] uppercase tracking-[0.16em] font-semibold text-stone mb-2">Nilai A</label>
+            <input type="number" id="pctA" class="field font-mono font-semibold" value="25">
+          </div>
+          <div>
+            <label class="block text-[10.5px] uppercase tracking-[0.16em] font-semibold text-stone mb-2">Nilai B</label>
+            <input type="number" id="pctB" class="field font-mono font-semibold" value="400">
+          </div>
+        </div>
+
+        <div class="mt-7 space-y-3">
+          <div class="rounded-2xl bg-ink/[.04] border border-ink/8 px-5 py-4 flex items-center justify-between gap-4">
+            <span class="text-[13px] text-ink/65 font-medium">A% dari B</span>
+            <strong class="font-mono text-[20px] tracking-tight" id="pctOut1">100</strong>
+          </div>
+          <div class="rounded-2xl bg-ink/[.04] border border-ink/8 px-5 py-4 flex items-center justify-between gap-4">
+            <span class="text-[13px] text-ink/65 font-medium">A adalah ... % dari B</span>
+            <strong class="font-mono text-[20px] tracking-tight" id="pctOut2">6,25%</strong>
+          </div>
+          <div class="rounded-2xl bg-flame text-white px-5 py-4 flex items-center justify-between gap-4">
+            <span class="text-[13px] font-medium opacity-90">Perubahan A → B</span>
+            <strong class="font-mono text-[20px] tracking-tight" id="pctOut3">+1.500%</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pinjaman -->
+      <div class="rounded-[26px] bg-ink text-paper p-7 sm:p-8 relative overflow-hidden reveal">
+        <div class="absolute -right-12 -top-12 w-52 h-52 rounded-full" style="background:radial-gradient(circle, rgba(215,255,62,.2) 0%, rgba(215,255,62,0) 70%)"></div>
+        <div class="relative">
+          <div class="flex items-center gap-3.5 mb-7">
+            <div class="w-12 h-12 rounded-[15px] bg-acid flex items-center justify-center">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0B0B0D" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            </div>
+            <div>
+              <h3 class="font-display font-bold text-[21px] tracking-tight leading-tight">Angsuran Pinjaman</h3>
+              <p class="text-paper/50 text-[12.5px] mt-0.5">Hitung cicilan bulanan</p>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-[11px] uppercase tracking-[0.15em] font-semibold text-paper/55">Jumlah pinjaman</span>
+                <span class="font-mono font-bold text-[16px] text-acid" id="loanAmtVal">Rp 250.000.000</span>
+              </div>
+              <input type="range" id="loanAmt" min="10000000" max="2000000000" step="10000000" value="250000000">
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-[11px] uppercase tracking-[0.15em] font-semibold text-paper/55">Bunga per tahun</span>
+                <span class="font-mono font-bold text-[16px] text-acid" id="loanRateVal">8,5%</span>
+              </div>
+              <input type="range" id="loanRate" class="flame-range" min="1" max="24" step="0.1" value="8.5">
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-[11px] uppercase tracking-[0.15em] font-semibold text-paper/55">Jangka waktu</span>
+                <span class="font-mono font-bold text-[16px] text-acid" id="loanYearVal">20 tahun</span>
+              </div>
+              <input type="range" id="loanYear" class="flame-range" min="1" max="30" step="1" value="20">
+            </div>
+          </div>
+
+          <div class="mt-8 rounded-2xl bg-paper/[.07] border border-paper/12 p-5">
+            <div class="text-[10.5px] uppercase tracking-[0.18em] font-semibold text-paper/55">Angsuran per bulan</div>
+            <div class="font-mono font-bold text-[32px] text-acid leading-none mt-2.5 tracking-tight" id="emiOut">Rp 0</div>
+            <div class="mt-5 h-2.5 rounded-full overflow-hidden flex bg-paper/12">
+              <div class="h-full bg-acid transition-all duration-700 ease-out" id="barPrincipal" style="width:55%"></div>
+              <div class="h-full bg-flame transition-all duration-700 ease-out" id="barInterest" style="width:45%"></div>
+            </div>
+            <div class="mt-4 flex items-center justify-between text-[12px]">
+              <div>
+                <div class="flex items-center gap-2 text-paper/55"><span class="w-2.5 h-2.5 rounded-full bg-acid"></span> Pokok</div>
+                <div class="font-mono font-semibold mt-1" id="principalOut">Rp 0</div>
+              </div>
+              <div class="text-right">
+                <div class="flex items-center gap-2 text-paper/55 justify-end"> Bunga <span class="w-2.5 h-2.5 rounded-full bg-flame"></span></div>
+                <div class="font-mono font-semibold mt-1" id="interestOut">Rp 0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BMI -->
+      <div class="rounded-[26px] bg-white border border-ink/10 p-7 sm:p-8 card-lift reveal">
+        <div class="flex items-center gap-3.5 mb-7">
+          <div class="w-12 h-12 rounded-[15px] bg-flame flex items-center justify-center">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 8.6a5.5 5.5 0 00-9.8-3.4A5.5 5.5 0 001.2 8.6c0 5 6.5 9.6 9.8 12.2 3.3-2.6 9.8-7.2 9.8-12.2z"/></svg>
+          </div>
+          <div>
+            <h3 class="font-display font-bold text-[21px] tracking-tight leading-tight">Indeks Massa Tubuh</h3>
+            <p class="text-stone text-[12.5px] mt-0.5">Pantau berat badan ideal</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-5 mb-8">
+          <div class="flex-1">
+            <div class="text-[10.5px] uppercase tracking-[0.16em] font-semibold text-stone">BMI Anda</div>
+            <div class="font-mono font-bold text-[52px] leading-none tracking-[-0.04em] mt-1.5" id="bmiOut">22,5</div>
+          </div>
+          <div class="px-4 py-2.5 rounded-full bg-acid text-ink font-semibold text-[13px] whitespace-nowrap" id="bmiCat">Normal</div>
+        </div>
+
+        <div class="relative h-3.5 rounded-full overflow-hidden flex mb-3">
+          <div class="h-full" style="width:22%; background:#59A5FF"></div>
+          <div class="h-full" style="width:26%; background:#D7FF3E"></div>
+          <div class="h-full" style="width:26%; background:#FFA23E"></div>
+          <div class="h-full" style="width:26%; background:#FF4B1F"></div>
+        </div>
+        <div class="flex justify-between text-[10px] uppercase tracking-[0.11em] font-semibold text-stone mb-8">
+          <span>Kurus</span><span>Normal</span><span>Berlebih</span><span>Obesitas</span>
+        </div>
+
+        <div class="space-y-6">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[11px] uppercase tracking-[0.15em] font-semibold text-stone">Tinggi badan</span>
+              <span class="font-mono font-bold text-[15px]" id="heightVal">170 cm</span>
+            </div>
+            <input type="range" id="heightRange" min="120" max="220" step="1" value="170">
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[11px] uppercase tracking-[0.15em] font-semibold text-stone">Berat badan</span>
+              <span class="font-mono font-bold text-[15px]" id="weightVal">65 kg</span>
+            </div>
+            <input type="range" id="weightRange" class="flame-range" min="30" max="200" step="1" value="65">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===================== STATISTIK + CHART ===================== -->
+<section class="relative py-20 sm:py-28 bg-ink text-paper overflow-hidden">
+  <div class="absolute inset-0 noise"></div>
+  <div class="relative max-w-[1280px] mx-auto px-5 sm:px-8">
+
+    <div class="grid lg:grid-cols-2 gap-14 items-center">
+      <div>
+        <div class="flex items-center gap-3 mb-6 reveal">
+          <span class="w-9 h-[3px] bg-acid"></span>
+          <span class="text-[11px] uppercase tracking-[0.24em] font-semibold text-paper/55">05 — Dalam Angka</span>
+        </div>
+        <h2 class="font-display font-bold leading-[.92] tracking-[-0.042em] reveal"
+            style="font-size:clamp(2.5rem,6.2vw,4.6rem)">
+          ANGKA YANG<br><span class="text-acid">BERBICARA.</span>
+        </h2>
+        <p class="mt-7 text-[16.5px] leading-[1.72] text-paper/62 max-w-[480px] reveal">
+          Dipercaya oleh pelajar, analis, pemilik bisnis, dan siapa pun yang membutuhkan
+          jawaban cepat tanpa mengorbankan ketepatan.
+        </p>
+
+        <div class="grid grid-cols-2 gap-x-8 gap-y-9 mt-11">
+          <div class="reveal">
+            <div class="font-mono font-bold text-[44px] leading-none tracking-[-0.035em] text-acid">
+              <span class="count" data-count="248000">0</span>
+            </div>
+            <div class="text-[11px] uppercase tracking-[0.17em] font-semibold text-paper/50 mt-3">Perhitungan diproses</div>
+          </div>
+          <div class="reveal">
+            <div class="font-mono font-bold text-[44px] leading-none tracking-[-0.035em] text-acid">
+              <span class="count" data-count="99.9" data-decimals="1">0</span>%
+            </div>
+            <div class="text-[11px] uppercase tracking-[0.17em] font-semibold text-paper/50 mt-3">Tingkat akurasi</div>
+          </div>
+          <div class="reveal">
+            <div class="font-mono font-bold text-[44px] leading-none tracking-[-0.035em] text-acid">
+              <span class="count" data-count="32">0</span>ms
+            </div>
+            <div class="text-[11px] uppercase tracking-[0.17em] font-semibold text-paper/50 mt-3">Waktu respons rata-rata</div>
+          </div>
+          <div class="reveal">
+            <div class="font-mono font-bold text-[44px] leading-none tracking-[-0.035em] text-acid">
+              <span class="count" data-count="120">0</span>+
+            </div>
+            <div class="text-[11px] uppercase tracking-[0.17em] font-semibold text-paper/50 mt-3">Pengguna aktif harian</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="reveal-scale rounded-[28px] border border-paper/12 p-7 sm:p-9" style="background:linear-gradient(160deg, rgba(244,241,234,.06) 0%, rgba(244,241,234,.02) 100%)">
+        <div class="flex items-start justify-between gap-6 mb-8">
+          <div>
+            <div class="text-[10px] uppercase tracking-[0.22em] font-semibold text-paper/50">Pertumbuhan penggunaan</div>
+            <div class="font-display font-bold text-[26px] tracking-tight mt-2">Tren 12 bulan terakhir</div>
+          </div>
+          <div class="px-3.5 py-2 rounded-full bg-acid text-ink text-[11px] font-bold tracking-[0.08em]">+68%</div>
+        </div>
+
+        <svg viewBox="0 0 600 240" class="w-full h-auto" id="chartSvg" aria-label="Grafik pertumbuhan penggunaan">
+          <defs>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#D7FF3E" stop-opacity=".38"/>
+              <stop offset="100%" stop-color="#D7FF3E" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+
+          <g stroke="rgba(244,241,234,.11)" stroke-width="1">
+            <line x1="0" y1="40" x2="600" y2="40"/>
+            <line x1="0" y1="90" x2="600" y2="90"/>
+            <line x1="0" y1="140" x2="600" y2="140"/>
+            <line x1="0" y1="190" x2="600" y2="190"/>
+            <line x1="0" y1="220" x2="600" y2="220"/>
+          </g>
+
+          <path class="chart-area" fill="url(#areaGrad)"
+                d="M20,196 C70,186 100,150 150,152 S230,112 285,110 S370,72 425,62 S530,32 580,22 L580,220 L20,220 Z"/>
+
+          <path class="chart-line" fill="none" stroke="#D7FF3E" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"
+                d="M20,196 C70,186 100,150 150,152 S230,112 285,110 S370,72 425,62 S530,32 580,22"/>
+
+          <circle class="chart-dot" cx="150" cy="152" r="6" fill="#0B0B0D" stroke="#D7FF3E" stroke-width="3"/>
+          <circle class="chart-dot" cx="285" cy="110" r="6" fill="#0B0B0D" stroke="#D7FF3E" stroke-width="3"/>
+          <circle class="chart-dot" cx="425" cy="62" r="6" fill="#0B0B0D" stroke="#D7FF3E" stroke-width="3"/>
+          <circle class="chart-dot" cx="580" cy="22" r="8" fill="#FF4B1F" stroke="#0B0B0D" stroke-width="3"/>
+
+          <g fill="rgba(244,241,234,.42)" font-size="13" font-family="Inter, sans-serif" font-weight="600">
+            <text x="20" y="238">Jan</text>
+            <text x="145" y="238">Apr</text>
+            <text x="280" y="238">Jul</text>
+            <text x="415" y="238">Okt</text>
+            <text x="545" y="238">Des</text>
+          </g>
+        </svg>
+
+        <div class="mt-7 pt-7 border-t border-paper/12 flex items-center justify-between gap-5">
+          <div class="flex items-center gap-2.5">
+            <span class="w-3 h-3 rounded-full bg-acid"></span>
+            <span class="text-[12.5px] text-paper/60 font-medium">Perhitungan harian</span>
+          </div>
+          <div class="font-mono font-bold text-[17px] text-acid">4.280 / hari</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TESTIMONI ===================== -->
+<section class="relative py-20 sm:py-28 bg-paper overflow-hidden">
+  <div class="relative max-w-[1280px] mx-auto px-5 sm:px-8">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 mb-14">
+      <div>
+        <div class="flex items-center gap-3 mb-5 reveal">
+          <span class="w-9 h-[3px] bg-flame"></span>
+          <span class="text-[11px] uppercase tracking-[0.24em] font-semibold text-stone">06 — Testimoni</span>
+        </div>
+        <h2 class="font-display font-bold leading-[.92] tracking-[-0.042em] reveal"
+            style="font-size:clamp(2.5rem,6.2vw,4.6rem)">
+          DIPAKAI SETIAP HARI<br><span class="text-flame">OLEH MEREKA.</span>
+        </h2>
+      </div>
+      <div class="flex items-center gap-3 reveal">
+        <div class="flex -space-x-3">
+          <img class="w-12 h-12 rounded-full border-[3px] border-paper object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80" alt="Pengguna" loading="lazy">
+          <img class="w-12 h-12 rounded-full border-[3px] border-paper object-cover" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&q=80" alt="Pengguna" loading="lazy">
+          <img class="w-12 h-12 rounded-full border-[3px] border-paper object-cover" src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=160&q=80" alt="Pengguna" loading="lazy">
+        </div>
+        <div>
+          <div class="flex gap-0.5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+          </div>
+          <div class="text-[13px] text-stone font-medium mt-1.5">4,9 / 5 dari 2.400+ ulasan</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6">
+      <div class="rounded-[24px] border border-ink/10 bg-white p-8 card-lift reveal">
+        <div class="flex gap-0.5 mb-5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+        </div>
+        <p class="text-[15.5px] leading-[1.75] text-ink/78">
+          “Antarmukanya jelas dan tidak membingungkan. Saya bisa menyelesaikan perhitungan laporan keuangan jauh lebih cepat dari biasanya.”
+        </p>
+        <div class="flex items-center gap-3.5 mt-7 pt-6 border-t border-ink/10">
+          <img class="w-11 h-11 rounded-full object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80" alt="Anindya Rahmadani" loading="lazy">
+          <div>
+            <div class="font-semibold text-[14.5px]">Anindya Rahmadani</div>
+            <div class="text-stone text-[12.5px]">Analis Keuangan</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-[24px] bg-ink text-paper p-8 relative overflow-hidden reveal">
+        <div class="absolute -right-10 -top-10 w-40 h-40 rounded-full" style="background:radial-gradient(circle, rgba(215,255,62,.22) 0%, rgba(215,255,62,0) 70%)"></div>
+        <div class="relative">
+          <div class="flex gap-0.5 mb-5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#D7FF3E"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#D7FF3E"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#D7FF3E"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#D7FF3E"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#D7FF3E"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+          </div>
+          <p class="text-[15.5px] leading-[1.75] text-paper/82">
+            “Mode ilmiahnya lengkap. Trigonometri, logaritma, faktorial — semua ada. Ini jadi alat wajib di laptop saya.”
+          </p>
+          <div class="flex items-center gap-3.5 mt-7 pt-6 border-t border-paper/12">
+            <img class="w-11 h-11 rounded-full object-cover" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&q=80" alt="Bagas Prakoso" loading="lazy">
+            <div>
+              <div class="font-semibold text-[14.5px]">Bagas Prakoso</div>
+              <div class="text-paper/50 text-[12.5px]">Dosen Teknik</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-[24px] border border-ink/10 bg-white p-8 card-lift reveal">
+        <div class="flex gap-0.5 mb-5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF4B1F"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+        </div>
+        <p class="text-[15.5px] leading-[1.75] text-ink/78">
+          “Konverter satuannya menyelamatkan banyak waktu. Tampilannya juga enak dilihat, tidak membosankan seperti kalkulator biasa.”
+        </p>
+        <div class="flex items-center gap-3.5 mt-7 pt-6 border-t border-ink/10">
+          <img class="w-11 h-11 rounded-full object-cover" src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=160&q=80" alt="Sekar Ayuningtyas" loading="lazy">
+          <div>
+            <div class="font-semibold text-[14.5px]">Sekar Ayuningtyas</div>
+            <div class="text-stone text-[12.5px]">Pemilik Bisnis</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FAQ ===================== -->
+<section id="faq" class="relative py-20 sm:py-28 bg-paper2 overflow-hidden">
+  <div class="absolute inset-0 stripe-bg opacity-60"></div>
+  <div class="relative max-w-[1000px] mx-auto px-5 sm:px-8">
+
+    <div class="text-center mb-14">
+      <div class="flex items-center justify-center gap-3 mb-5 reveal">
+        <span class="w-9 h-[3px] bg-ink"></span>
+        <span class="text-[11px] uppercase tracking-[0.24em] font-semibold text-stone">07 — FAQ</span>
+      </div>
+      <h2 class="font-display font-bold leading-[.92] tracking-[-0.042em] reveal"
+          style="font-size:clamp(2.4rem,6vw,4.4rem)">
+        PERTANYAAN<br><span class="text-flame">YANG SERING MUNCUL.</span>
+      </h2>
+    </div>
+
+    <div class="space-y-3.5">
+      <div class="faq-item rounded-[20px] border border-ink/12 bg-white overflow-hidden reveal">
+        <button class="faq-q w-full flex items-center justify-between gap-6 text-left px-6 sm:px-8 py-6">
+          <span class="faq-q-text font-display font-semibold text-[17px] sm:text-[20px] tracking-tight">Apakah hasil perhitungan benar-benar akurat?</span>
+          <span class="plus text-[26px] leading-none text-flame font-light shrink-0">+</span>
+        </button>
+        <div class="faq-a px-6 sm:px-8">
+          <p class="pb-7 text-[15.5px] leading-[1.78] text-paper/70">
+            Ya. AXIOM menggunakan mesin ekspresi bertingkat dengan presisi 12 digit signifikan, mendukung kurung bersarang,
+            urutan operasi standar matematika, serta notasi ilmiah untuk angka yang sangat besar atau sangat kecil.
+          </p>
+        </div>
+      </div>
+
+      <div class="faq-item rounded-[20px] border border-ink/12 bg-white overflow-hidden reveal">
+        <button class="faq-q w-full flex items-center justify-between gap-6 text-left px-6 sm:px-8 py-6">
+          <span class="faq-q-text font-display font-semibold text-[17px] sm:text-[20px] tracking-tight">Apakah bisa digunakan tanpa koneksi internet?</span>
+          <span class="plus text-[26px] leading-none text-flame font-light shrink-0">+</span>
+        </button>
+        <div class="faq-a px-6 sm:px-8">
+          <p class="pb-7 text-[15.5px] leading-[1.78] text-paper/70">
+            Bisa. Seluruh proses perhitungan berjalan langsung di browser Anda. Setelah halaman dimuat,
+            kalkulator, konverter, dan alat hitung tetap berfungsi sepenuhnya secara offline.
+          </p>
+        </div>
+      </div>
+
+      <div class="faq-item rounded-[20px] border border-ink/12 bg-white overflow-hidden reveal">
+        <button class="faq-q w-full flex items-center justify-between gap-6 text-left px-6 sm:px-8 py-6">
+          <span class="faq-q-text font-display font-semibold text-[17px] sm:text-[20px] tracking-tight">Fungsi ilmiah apa saja yang didukung?</span>
+          <span class="plus text-[26px] leading-none text-flame font-light shrink-0">+</span>
+        </button>
+        <div class="faq-a px-6 sm:px-8">
+          <p class="pb-7 text-[15.5px] leading-[1.78] text-paper/70">
+            Trigonometri (sin, cos, tan beserta inversnya), logaritma basis 10 dan natural, akar, pangkat,
+            faktorial, nilai mutlak, eksponensial, pembulatan, konstanta π dan e, serta mode derajat dan radian.
+          </p>
+        </div>
+      </div>
+
+      <div class="faq-item rounded-[20px] border border-ink/12 bg-white overflow-hidden reveal">
+        <button class="faq-q w-full flex items-center justify-between gap-6 text-left px-6 sm:px-8 py-6">
+          <span class="faq-q-text font-display font-semibold text-[17px] sm:text-[20px] tracking-tight">Apakah riwayat perhitungan saya tersimpan?</span>
+          <span class="plus text-[26px] leading-none text-flame font-light shrink-0">+</span>
+        </button>
+        <div class="faq-a px-6 sm:px-8">
+          <p class="pb-7 text-[15.5px] leading-[1.78] text-paper/70">
+            Riwayat disimpan sementara di sesi browser Anda dan tidak pernah dikirim ke server mana pun.
+            Anda dapat menghapusnya kapan saja dengan tombol “Bersihkan”.
+          </p>
+        </div>
+      </div>
+
+      <div class="faq-item rounded-[20px] border border-ink/12 bg-white overflow-hidden reveal">
+        <button class="faq-q w-full flex items-center justify-between gap-6 text-left px-6 sm:px-8 py-6">
+          <span class="faq-q-text font-display font-semibold text-[17px] sm:text-[20px] tracking-tight">Apakah tersedia untuk ponsel?</span>
+          <span class="plus text-[26px] leading-none text-flame font-light shrink-0">+</span>
+        </button>
+        <div class="faq-a px-6 sm:px-8">
+          <p class="pb-7 text-[15.5px] leading-[1.78] text-paper/70">
+            Tentu. Tata letak dirancang responsif penuh, dengan tombol berukuran nyaman untuk disentuh
+            dan proporsi tipografi yang tetap terbaca di layar kecil.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CTA ===================== -->
+<section class="relative py-20 sm:py-28 bg-acid text-ink overflow-hidden">
+  <div class="absolute inset-0" style="background-image:radial-gradient(circle at 12% 18%, rgba(11,11,13,.09) 0%, transparent 42%), radial-gradient(circle at 88% 82%, rgba(255,75,31,.22) 0%, transparent 46%)"></div>
+  <div class="relative max-w-[1100px] mx-auto px-5 sm:px-8 text-center">
+    <h2 class="font-display font-bold leading-[.88] tracking-[-0.05em] reveal"
+        style="font-size:clamp(2.9rem,10vw,7.2rem)">
+      SIAP MENGHITUNG<br>LEBIH CEPAT?
+    </h2>
+    <p class="mt-8 text-[18px] sm:text-[21px] leading-[1.6] text-ink/72 max-w-[620px] mx-auto reveal">
+      Tidak perlu registrasi, tidak perlu unduh. Buka, hitung, selesai.
+    </p>
+    <div class="mt-10 flex flex-wrap items-center justify-center gap-4 reveal">
+      <a href="#calculator" class="btn px-10 py-5 text-[16px] magnetic" style="background:#0B0B0D; color:#F4F1EA">
+        Buka Kalkulator
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a href="#tools" class="btn px-10 py-5 text-[16px] border-[1.7px] border-ink text-ink hover:bg-ink hover:text-acid magnetic">
+        Lihat Alat Lainnya
+      </a>
+    </div>
+
+    <div class="mt-14 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 reveal">
+      <div class="flex items-center gap-2.5 text-[13px] font-semibold text-ink/70">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        Gratis selamanya
+      </div>
+      <div class="flex items-center gap-2.5 text-[13px] font-semibold text-ink/70">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        Tanpa iklan
+      </div>
+      <div class="flex items-center gap-2.5 text-[13px] font-semibold text-ink/70">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        Privasi terjamin
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ===================== FOOTER ===================== -->
+<footer class="bg-ink text-paper pt-20 pb-10">
+  <div class="max-w-[1280px] mx-auto px-5 sm:px-8">
+    <div class="grid md:grid-cols-[1.6fr_1fr_1fr_1.2fr] gap-12 pb-14 border-b border-paper/12">
+
+      <div>
+        <a href="#home" class="flex items-center gap-2.5 mb-6">
+          <div class="w-11 h-11 rounded-[14px] bg-acid flex items-center justify-center">
+            <span class="text-ink font-display font-bold text-xl leading-none">A</span>
+          </div>
+          <div>
+            <div class="font-display font-bold text-[21px] tracking-tight leading-none">AXIOM</div>
+            <div class="text-[9px] uppercase tracking-[0.22em] text-paper/45 font-semibold mt-1">Kalkulator Presisi</div>
+          </div>
+        </a>
+        <p class="text-paper/55 text-[14.5px] leading-[1.72] max-w-[310px]">
+          Alat hitung modern untuk kebutuhan harian, akademik, dan profesional.
+          Cepat, akurat, dan dirancang dengan detail.
+        </p>
+      </div>
+
+      <div>
+        <h4 class="text-[10.5px] uppercase tracking-[0.22em] font-semibold text-paper/45 mb-6">Produk</h4>
+        <ul class="space-y-3.5">
+          <li><a href="#calculator" class="text-paper/72 hover:text-acid transition-colors text-[14.5px]">Kalkulator Standar</a></li>
+          <li><a href="#calculator" class="text-paper/72 hover:text-acid transition-colors text-[14.5px]">Kalkulator Ilmiah</a></li>
+          <li><a href="#converter" class="text-paper/72 hover:text-acid transition-colors text-[14.5px]">Konverter Satuan</a></li>
+          <li><a href="#tools" class="text-paper/72 hover:text-acid transition-colors text-[14.5px]">Alat Keuangan</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="text-[10.5px] uppercase tracking-[0.22em] font-semibold text-paper/45 mb-6">Perusahaan</h4>
+        <ul class="space-y-3.5">
+          <li><a href="#features" class="text-paper/72 hover:text-acid transition-colors text-[14.5px]">Tentang Kami</a></li>
+          <li><a href="#faq" class="text-paper/72 hover:text-acid transition-colors text-[14.5px]">FAQ</a></li>
+          <li><a href="#" class="text-paper/72 hover:text-acid transition-colors text-[14.5px]">Kebijakan Privasi</a></li>
+          <li><a href="#" class="text-paper/72 hover:text-acid transition-colors text-[14.5px]">Syarat Layanan</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="text-[10.5px] uppercase tracking-[0.22em] font-semibold text-paper/45 mb-6">Tetap Terhubung</h4>
+        <p class="text-paper/55 text-[14px] leading-[1.7] mb-5">
+          Dapatkan tips produktivitas dan pembaruan fitur terbaru.
+        </p>
+        <form class="flex gap-2.5" id="newsletterForm">
+          <input type="email" placeholder="Email Anda" class="flex-1 bg-paper/8 border border-paper/15 rounded-full px-5 py-3.5 text-[14px] text-paper placeholder-paper/38 focus:outline-none focus:border-acid transition-colors" required>
+          <button type="submit" class="btn btn-acid px-6 py-3.5 text-[14px] shrink-0">Kirim</button>
+        </form>
+        <div class="flex gap-3 mt-6">
+          <a href="#" class="w-10 h-10 rounded-full border border-paper/15 flex items-center justify-center hover:bg-acid hover:text-ink hover:border-acid transition-colors duration-300" aria-label="Twitter">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7 8 8.2 12h-6.4l-5-7.3L5.9 22H2.8l7.5-8.6L2.4 2h6.6l4.5 6.6zM17.8 20h1.7L7.3 3.8H5.5z"/></svg>
+          </a>
+          <a href="#" class="w-10 h-10 rounded-full border border-paper/15 flex items-center justify-center hover:bg-acid hover:text-ink hover:border-acid transition-colors duration-300" aria-label="Instagram">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
+          </a>
+          <a href="#" class="w-10 h-10 rounded-full border border-paper/15 flex items-center justify-center hover:bg-acid hover:text-ink hover:border-acid transition-colors duration-300" aria-label="LinkedIn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4.98 3.5a2.5 2.5 0 11-.02 5 2.5 2.5 0 01.02-5zM3 9h4v12H3zM9 9h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.35c0-1.28-.02-2.92-1.78-2.92-1.78 0-2.05 1.39-2.05 2.83V21H9z"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-9 flex flex-col sm:flex-row items-center justify-between gap-5">
+      <p class="text-paper/42 text-[13px]">© <span id="year">2024</span> AXIOM Calculator. Seluruh hak cipta dilindungi.</p>
+      <div class="flex items-center gap-7">
+        <a href="#" class="text-paper/42 hover:text-acid transition-colors text-[13px]">Privasi</a>
+        <a href="#" class="text-paper/42 hover:text-acid transition-colors text-[13px]">Ketentuan</a>
+        <a href="#" class="text-paper/42 hover:text-acid transition-colors text-[13px]">Kontak</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =========================================================
+     0. UTIL
+  ========================================================== */
+  const $ = (s, c) => (c || document).querySelector(s);
+  const $$ = (s, c) => Array.prototype.slice.call((c || document).querySelectorAll(s));
+
+  /* =========================================================
+     1. SCROLL PROGRESS + NAV
+  ========================================================== */
+  const progress = $('#progress');
+  const nav = $('#nav');
+  const heroVisual = $('#heroVisual');
+
+  function onScroll() {
+    const st = window.pageYOffset || document.documentElement.scrollTop;
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    if (progress) progress.style.width = (h > 0 ? (st / h) * 100 : 0) + '%';
+    if (nav) nav.classList.toggle('scrolled', st > 40);
+    if (heroVisual && st < window.innerHeight * 1.3) {
+      heroVisual.style.transform = 'translateY(' + (st * -0.055) + 'px)';
+    }
+  }
+  let ticking = false;
+  window.addEventListener('scroll', function () {
+    if (!ticking) {
+      window.requestAnimationFrame(function () { onScroll(); ticking = false; });
+      ticking = true;
+    }
+  }, { passive: true });
+  onScroll();
+
+  // Mobile menu
+  const menuBtn = $('#menuBtn');
+  const mobileMenu = $('#mobileMenu');
+  if (menuBtn && mobileMenu) {
+    menuBtn.addEventListener('click', function () {
+      mobileMenu.classList.toggle('open');
+    });
+    $$('.mobile-link').forEach(function (l) {
+      l.addEventListener('click', function () { mobileMenu.classList.remove('open'); });
+    });
+  }
+
+  // Year
+  const yearEl = $('#year');
+  if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+  /* =========================================================
+     2. REVEAL ON SCROLL
+  ========================================================== */
+  const revealEls = $$('.reveal, .reveal-left, .reveal-scale');
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          const el = entry.target;
+          const siblings = el.parentElement ? Array.prototype.indexOf.call(el.parentElement.children, el) : 0;
+          el.style.transitionDelay = Math.min(siblings * 70, 420) + 'ms';
+          el.classList.add('in');
+          io.unobserve(el);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+    revealEls.forEach(function (el) { io.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('in'); });
+  }
+
+  /* =========================================================
+     3. COUNTERS
+  ========================================================== */
+  function animateCount(el) {
+    const target = parseFloat(el.getAttribute('data-count'));
+    const dec = parseInt(el.getAttribute('data-decimals') || '0', 10);
+    if (isNaN(target)) return;
+    const dur = 1700;
+    const start = performance.now();
+    function tick(now) {
+      const p = Math.min((now - start) / dur, 1);
+      const e = 1 - Math.pow(1 - p, 3);
+      const val = target * e;
+      el.textContent = dec > 0
+        ? val.toLocaleString('id-ID', { minimumFractionDigits: dec, maximumFractionDigits: dec })
+        : Math.round(val).toLocaleString('id-ID');
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+  const counters = $$('.count');
+  if ('IntersectionObserver' in window) {
+    const cio = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          animateCount(entry.target);
+          cio.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.4 });
+    counters.forEach(function (c) { cio.observe(c); });
+  } else {
+    counters.forEach(animateCount);
+  }
+
+  /* =========================================================
+     4. HERO BAR + RESULT
+  ========================================================== */
+  setTimeout(function () {
+    const bar = $('#heroBar');
+    if (bar) bar.style.width = '78%';
+    const hr = $('#heroResult');
+    if (hr) {
+      let n = 0;
+      const target = 1284900;
+      const start = performance.now();
+      (function step(now) {
+        const p = Math.min((now - start) / 1800, 1);
+        const e = 1 - Math.pow(1 - p, 3);
+        n = target * e;
+        hr.textContent = Math.round(n).toLocaleString('id-ID');
+        if (p < 1) requestAnimationFrame(step);
+      })(performance.now());
+    }
+  }, 650);
+
+  /* =========================================================
+     5. MAGNETIC BUTTONS
+  ========================================================== */
+  if (window.matchMedia('(hover:hover)').matches) {
+    $$('.magnetic').forEach(function (btn) {
+      btn.addEventListener('mousemove', function (e) {
+        const r = btn.getBoundingClientRect();
+        const x = e.clientX - r.left - r.width / 2;
+        const y = e.clientY - r.top - r.height / 2;
+        btn.style.transform = 'translate(' + (x * 0.18) + 'px,' + (y * 0.28) + 'px)';
+      });
+      btn.addEventListener('mouseleave', function () {
+        btn.style.transform = 'translate(0,0)';
+      });
+    });
+
+    // hero card tilt
+    const heroWrap = $('#heroVisual');
+    if (heroWrap) {
+      const card = heroWrap.querySelector('img');
+      heroWrap.addEventListener('mousemove', function (e) {
+        const r = heroWrap.getBoundingClientRect();
+        const px = (e.clientX - r.left) / r.width - 0.5;
+        const py = (e.clientY - r.top) / r.height - 0.5;
+        heroWrap.style.transition = 'transform .25s ease-out';
+        heroWrap.style.transform = 'perspective(1100px) rotateY(' + (px * 7) + 'deg) rotateX(' + (-py * 7) + 'deg)';
+      });
+      heroWrap.addEventListener('mouseleave', function () {
+        heroWrap.style.transition = 'transform .8s cubic-bezier(.16,1,.3,1)';
+        heroWrap.style.transform = 'perspective(1100px) rotateY(0deg) rotateX(0deg)';
+      });
+    }
+  }
+
+  /* =========================================================
+     6. RIPPLES
+  ========================================================== */
+  function addRipple(e, el) {
+    const r = el.getBoundingClientRect();
+    const size = Math.max(r.width, r.height) * 1.4;
+    const span = document.createElement('span');
+    span.className = 'ripple';
+    span.style.width = span.style.height = size + 'px';
+    span.style.left = ((e.clientX || r.left + r.width / 2) - r.left - size / 2) + 'px';
+    span.style.top = ((e.clientY || r.top + r.height / 2) - r.top - size / 2) + 'px';
+    el.appendChild(span);
+    setTimeout(function () { if (span.parentNode) span.parentNode.removeChild(span); }, 620);
+  }
+  document.addEventListener('pointerdown', function (e) {
+    const el = e.target.closest('.key, .btn');
+    if (el) addRipple(e, el);
+  });
+
+  /* =========================================================
+     7. MATH ENGINE
+  ========================================================== */
+  const FUNCS = {
+    sin: 1, cos: 1, tan: 1, asin: 1, acos: 1, atan: 1,
+    sinh: 1, cosh: 1, tanh: 1, log: 1, ln: 1, log2: 1,
+    sqrt: 1, cbrt: 1, abs: 1, exp: 1, round: 1, floor: 1, ceil: 1, sign: 1
+  };
+  const CONSTS = { pi: Math.PI, e: Math.E };
+
+  let angleMode = 'DEG';
+  let lastAns = 0;
+
+  function toMath(s) {
+    return String(s)
+      .replace(/×/g, '*')
+      .replace(/÷/g, '/')
+      .replace(/−/g, '-')
+      .replace(/π/g, 'pi')
+      .replace(/√/g, 'sqrt');
+  }
+
+  function tokenize(str) {
+    const s = toMath(str);
+    const tokens = [];
+    let i = 0;
+    const isDigit = function (c) { return c >= '0' && c <= '9'; };
+
+    while (i < s.length) {
+      const c = s[i];
+      if (c === ' ') { i++; continue; }
+
+      if (isDigit(c) || c === '.') {
+        let n = '';
+        while (i < s.length && (isDigit(s[i]) || s[i] === '.')) n += s[i++];
+        if ((s[i] === 'e' || s[i] === 'E')) {
+          let j = i + 1;
+          if (s[j] === '+' || s[j] === '-') j++;
+          if (isDigit(s[j])) {
+            n += s[i++];
+            if (s[i] === '+' || s[i] === '-') n += s[i++];
+            while (i < s.length && isDigit(s[i])) n += s[i++];
+          }
+        }
+        const v = parseFloat(n);
+        if (isNaN(v)) throw new Error('num');
+        tokens.push({ t: 'num', v: v });
+        continue;
+      }
+
+      if (/[a-zA-Z]/.test(c)) {
+        let n = '';
+        while (i < s.length && /[a-zA-Z0-9]/.test(s[i])) n += s[i++];
+        tokens.push({ t: 'name', v: n.toLowerCase() });
+        continue;
+      }
+
+      if ('+-*/^!()%'.indexOf(c) !== -1) {
+        tokens.push({ t: 'op', v: c });
+        i++;
+        continue;
+      }
+      throw new Error('char');
+    }
+
+    // implicit multiplication
+    const out = [];
+    for (let k = 0; k < tokens.length; k++) {
+      const cur = tokens[k];
+      const nxt = tokens[k + 1];
+      out.push(cur);
+      if (!nxt) break;
+
+      const curIsFunc = (cur.t === 'name' && FUNCS[cur.v] && nxt.t === 'op' && nxt.v === '(');
+      const curEndsValue =
+        cur.t === 'num' ||
+        (cur.t === 'op' && ')!%'.indexOf(cur.v) !== -1) ||
+        (cur.t === 'name' && !curIsFunc);
+
+      const nxtStartsValue =
+        nxt.t === 'num' ||
+        nxt.t === 'name' ||
+        (nxt.t === 'op' && nxt.v === '(');
+
+      if (curEndsValue && nxtStartsValue) out.push({ t: 'op', v: '*' });
+    }
+    return out;
+  }
+
+  function toRPN(tokens) {
+    const out = [];
+    const ops = [];
+    const prec = { '+': 1, '-': 1, '*': 2, '/': 2, 'u-': 3, '^': 4 };
+    const rightAssoc = { '^': true, 'u-': true };
+    let prev = null;
+
+    for (let k = 0; k < tokens.length; k++) {
+      const tk = tokens[k];
+
+      if (tk.t === 'num') { out.push(tk); prev = 'num'; continue; }
+
+      if (tk.t === 'name') {
+        const nm = tk.v;
+        if (FUNCS[nm]) {
+          ops.push({ t: 'func', v: nm });
+        } else if (nm === 'ans') {
+          out.push({ t: 'num', v: lastAns });
+        } else if (Object.prototype.hasOwnProperty.call(CONSTS, nm)) {
+          out.push({ t: 'num', v: CONSTS[nm] });
+        } else {
+          throw new Error('name');
+        }
+        prev = 'num';
+        continue;
+      }
+
+      const v = tk.v;
+      if (v === '(') { ops.push({ t: 'op', v: '(' }); prev = '('; continue; }
+
+      if (v === ')') {
+        while (ops.length && !(ops[ops.length - 1].t === 'op' && ops[ops.length - 1].v === '(')) {
+          out.push(ops.pop());
+        }
+        if (!ops.length) throw new Error('paren');
+        ops.pop();
+        if (ops.length && ops[ops.length - 1].t === 'func') out.push(ops.pop());
+        prev = 'num';
+        continue;
+      }
+
+      if (v === '!' || v === '%') {
+        out.push({ t: 'post', v: v });
+        prev = 'num';
+        continue;
+      }
+
+      let op = v;
+      const unaryCtx = (prev === null || prev === 'op' || prev === '(');
+      if (v === '-' && unaryCtx) op = 'u-';
+      if (v === '+' && unaryCtx) continue; // unary plus = no-op
+
+      while (ops.length) {
+        const top = ops[ops.length - 1];
+        if (top.t === 'func') { out.push(ops.pop()); continue; }
+        if (top.t === 'op' && top.v === '(') break;
+        const tp = prec[top.v];
+        if (tp === undefined) break;
+        if (tp > prec[op] || (tp === prec[op] && !rightAssoc[op])) out.push(ops.pop());
+        else break;
+      }
+      ops.push({ t: 'op', v: op });
+      prev = 'op';
+    }
+
+    while (ops.length) {
+      const top = ops.pop();
+      if (top.v === '(') throw new Error('paren');
+      out.push(top);
+    }
+    return out;
+  }
+
+  function factorial(n) {
+    if (n < 0 || !Number.isInteger(n) || n > 170) throw new Error('fact');
+    let r = 1;
+    for (let i = 2; i <= n; i++) r *= i;
+    return r;
+  }
+
+  function applyFunc(f, x) {
+    const d = angleMode === 'DEG' ? Math.PI / 180 : 1;
+    switch (f) {
+      case 'sin': return Math.sin(x * d);
+      case 'cos': return Math.cos(x * d);
+      case 'tan': return Math.tan(x * d);
+      case 'asin': if (x < -1 || x > 1) throw new Error('dom'); return Math.asin(x) / d;
+      case 'acos': if (x < -1 || x > 1) throw new Error('dom'); return Math.acos(x) / d;
+      case 'atan': return Math.atan(x) / d;
+      case 'sinh': return Math.sinh(x);
+      case 'cosh': return Math.cosh(x);
+      case 'tanh': return Math.tanh(x);
+      case 'log': if (x <= 0) throw new Error('dom'); return Math.log10(x);
+      case 'ln': if (x <= 0) throw new Error('dom'); return Math.log(x);
+      case 'log2': if (x <= 0) throw new Error('dom'); return Math.log2(x);
+      case 'sqrt': if (x < 0) throw new Error('dom'); return Math.sqrt(x);
+      case 'cbrt': return Math.cbrt(x);
+      case 'abs': return Math.abs(x);
+      case 'exp': return Math.exp(x);
+      case 'round': return Math.round(x);
+      case 'floor': return Math.floor(x);
+      case 'ceil': return Math.ceil(x);
+      case 'sign': return Math.sign(x);
+      default: throw new Error('fn');
+    }
+  }
+
+  function evaluate(str) {
+    const tokens = tokenize(str);
+    if (!tokens.length) throw new Error('empty');
+    const rpn = toRPN(tokens);
+    const st = [];
+
+    for (let i = 0; i < rpn.length; i++) {
+      const tk = rpn[i];
+      if (tk.t === 'num') { st.push(tk.v); continue; }
+
+      if (tk.t === 'post') {
+        const a = st.pop();
+        if (a === undefined) throw new Error('arity');
+        st.push(tk.v === '!' ? factorial(a) : a / 100);
+        continue;
+      }
+
+      if (tk.t === 'func') {
+        const a = st.pop();
+        if (a === undefined) throw new Error('arity');
+        st.push(applyFunc(tk.v, a));
+        continue;
+      }
+
+      if (tk.t === 'op') {
+        if (tk.v === 'u-') {
+          const a = st.pop();
+          if (a === undefined) throw new Error('arity');
+          st.push(-a);
+          continue;
+        }
+        const b = st.pop();
+        const a = st.pop();
+        if (a === undefined || b === undefined) throw new Error('arity');
+        switch (tk.v) {
+          case '+': st.push(a + b); break;
+          case '-': st.push(a - b); break;
+          case '*': st.push(a * b); break;
+          case '/':
+            if (b === 0) throw new Error('div0');
+            st.push(a / b);
+            break;
+          case '^': st.push(Math.pow(a, b)); break;
+          default: throw new Error('op');
+        }
+        continue;
+      }
+      throw new Error('rpn');
+    }
+
+    if (st.length !== 1) throw new Error('stack');
+    const val = st[0];
+    if (typeof val !== 'number' || isNaN(val) || !isFinite(val)) throw new Error('nan');
+    return val;
+  }
+
+  /* ---- formatting ---- */
+  function groupStr(s) {
+    const neg = s.charAt(0) === '-';
+    if (neg) s = s.slice(1);
+    const parts = s.split('.');
+    const ip = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (neg ? '-' : '') + ip + (parts[1] ? '.' + parts[1] : '');
+  }
+
+  function fmt(n) {
+    if (typeof n !== 'number' || isNaN(n)) return 'Error';
+    if (!isFinite(n)) return n > 0 ? '∞' : '−∞';
+    const a = Math.abs(n);
+    if (a !== 0 && (a >= 1e12 || a < 1e-9)) {
+      return n.toExponential(8).replace(/^-/, '−');
+    }
+    const s = String(parseFloat(n.toPrecision(12)));
+    return groupStr(s).replace(/^-/, '−');
+  }
+
+  function plain(n) {
+    if (!isFinite(n)) return '0';
+    const s = String(parseFloat(n.toPrecision(12)));
+    return s;
+  }
+
+  /* =========================================================
+     8. CALCULATOR UI
+  ========================================================== */
+  const exprDisplay = $('#exprDisplay');
+  const resultDisplay = $('#resultDisplay');
+  const displayShell = $('#displayShell');
+  const historyList = $('#historyList');
+  const histCount = $('#histCount');
+
+  let expr = '';
+  let justEvaluated = false;
+  let mem = 0;
+  let history = [];
+
+  try {
+    const saved = window.localStorage.getItem('axiom_history');
+    if (saved) history = JSON.parse(saved) || [];
+  } catch (err) { history = []; }
+
+  function saveHistory() {
+    try {
+      window.localStorage.setItem('axiom_history', JSON.stringify(history.slice(0, 30)));
+    } catch (err) { /* ignore */ }
+  }
+
+  function renderHistory() {
+    if (!historyList) return;
+    if (!history.length) {
+      historyList.innerHTML = '<div class="text-[14px] text-stone leading-relaxed py-6 text-center border border-dashed border-ink/12 rounded-2xl">Belum ada perhitungan.<br>Mulai dari panel di samping.</div>';
+      if (histCount) histCount.textContent = '0 entri';
+      return;
+    }
+    let html = '';
+    history.slice(0, 18).forEach(function (item, idx) {
+      html += '<button class="hist-item w-full text-left rounded-2xl border border-ink/10 px-4 py-3.5 flex items-center justify-between gap-3" data-hist="' + idx + '">' +
+        '<span class="text-[12.5px] text-stone font-mono truncate max-w-[52%]">' + escapeHtml(item.e) + '</span>' +
+        '<span class="text-[15px] font-mono font-bold tracking-tight truncate">' + escapeHtml(item.r) + '</span>' +
+        '</button>';
+    });
+    historyList.innerHTML = html;
+    if (histCount) histCount.textContent = history.length + ' entri';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (m) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m];
+    });
+  }
+
+  function render() {
+    if (!exprDisplay || !resultDisplay) return;
+    exprDisplay.textContent = expr === '' ? '0' : expr;
+
+    if (expr === '') {
+      resultDisplay.textContent = '0';
+      resultDisplay.classList.remove('ghost');
+      return;
+    }
+    try {
+      const val = evaluate(expr);
+      resultDisplay.textContent = fmt(val);
+      resultDisplay.classList.add('ghost');
+    } catch (err) {
+      /* incomplete expression: keep last shown value */
+    }
+  }
+
+  function shake() {
+    if (!displayShell) return;
+    displayShell.classList.remove('shake');
+    void displayShell.offsetWidth;
+    displayShell.classList.add('shake');
+    if (resultDisplay) {
+      resultDisplay.textContent = 'Error';
+      resultDisplay.classList.remove('ghost');
+    }
+    setTimeout(function () {
+      if (displayShell) displayShell.classList.remove('shake');
+      render();
+    }, 700);
+  }
+
+  function appendInput(v) {
+    const ops = ['+', '−', '×', '÷', '^'];
+
+    if (justEvaluated) {
+      if (/[0-9.]/.test(v) || v === 'π' || v === 'e' || v === '(' || v === '√(') {
+        expr = '';
+      }
+      justEvaluated = false;
+    }
+
+    if (ops.indexOf(v) !== -1) {
+      if (expr === '') {
+        if (v === '−') expr = '−';
+        render();
+        return;
+      }
+      const last = expr.slice(-1);
+      if (ops.indexOf(last) !== -1) {
+        if (v === '−' && (last === '×' || last === '÷' || last === '^')) {
+          expr += '−';
+        } else {
+          expr = expr.slice(0, -1) + v;
+        }
+        render();
+        return;
+      }
+    }
+
+    if (v === '.') {
+      const m = expr.match(/([0-9.]*)$/);
+      if (m && m[1].indexOf('.') !== -1) { render(); return; }
+    }
+
+    if (v === ')') {
+      const open = (expr.match(/\(/g) || []).length;
+      const close = (expr.match(/\)/g) || []).length;
+      if (open <= close) { render(); return; }
+    }
+
+    expr += v;
+    render();
+  }
+
+  function insertFn(f) {
+    if (justEvaluated) { expr = ''; justEvaluated = false; }
+    expr += f;
+    render();
+  }
+
+  function backspace() {
+    if (justEvaluated) { expr = ''; justEvaluated = false; render(); return; }
+    const fns = ['asin(', 'acos(', 'atan(', 'sinh(', 'cosh(', 'tanh(', 'sin(', 'cos(', 'tan(', 'round(', 'floor(', 'ceil(', 'sqrt(', 'log2(', 'log(', 'ln(', 'abs(', 'exp(', 'cbrt(', '√('];
+    for (let i = 0; i < fns.length; i++) {
+      if (expr.endsWith(fns[i])) {
+        expr = expr.slice(0, -fns[i].length);
+        render();
+        return;
+      }
+    }
+    expr = expr.slice(0, -1);
+    render();
+  }
+
+  function clearAll() {
+    expr = '';
+    justEvaluated = false;
+    render();
+  }
+
+  function toggleSign() {
+    const m = expr.match(/(\d*\.?\d+)$/);
+    if (!m) {
+      expr += '−';
+      render();
+      return;
+    }
+    const start = expr.length - m[0].length;
+    const before = expr.slice(0, start);
+    const prevChar = before.slice(-1);
+    const prevPrev = before.slice(-2, -1);
+    if (prevChar === '−' && (before.length === 1 || '+−×÷^('.indexOf(prevPrev) !== -1)) {
+      expr = before.slice(0, -1) + m[0];
+    } else {
+      expr = before + '−' + m[0];
+    }
+    render();
+  }
+
+  function doEquals() {
+    if (!expr) return;
+    try {
+      const val = evaluate(expr);
+      const out = fmt(val);
+      lastAns = val;
+      history.unshift({ e: expr, r: out });
+      if (history.length > 30) history.pop();
+      saveHistory();
+      renderHistory();
+
+      if (exprDisplay) exprDisplay.textContent = expr + ' =';
+      if (resultDisplay) {
+        resultDisplay.textContent = out;
+        resultDisplay.classList.remove('ghost');
+        resultDisplay.classList.remove('flash');
+        void resultDisplay.offsetWidth;
+        resultDisplay.classList.add('flash');
+      }
+      expr = plain(val);
+      justEvaluated = true;
+    } catch (err) {
+      shake();
+    }
+  }
+
+  function handleAct(act) {
+    switch (act) {
+      case 'clear': clearAll(); break;
+      case 'back': backspace(); break;
+      case 'equals': doEquals(); break;
+      case 'sign': toggleSign(); break;
+      case 'ans':
+        if (justEvaluated) { expr = ''; justEvaluated = false; }
+        expr += plain(lastAns);
+        render();
+        break;
+      case 'mc': mem = 0; updateMem(); break;
+      case 'mr':
+        if (justEvaluated) { expr = ''; justEvaluated = false; }
+        expr += plain(mem);
+        render();
+        break;
+      case 'mplus':
+        try { mem += evaluate(expr); } catch (e) { /* noop */ }
+        updateMem();
+        break;
+      case 'mminus':
+        try { mem -= evaluate(expr); } catch (e) { /* noop */ }
+        updateMem();
+        break;
+      default: break;
+    }
+  }
+
+  function updateMem() {
+    const el = $('#memToggle');
+    if (el) {
+      el.textContent = 'M: ' + fmt(mem);
+      el.style.borderColor = mem !== 0 ? 'rgba(215,255,62,.55)' : 'rgba(244,241,234,.15)';
+      el.style.color = mem !== 0 ? '#D7FF3E' : 'rgba(244,241,234,.6)';
+    }
+  }
+
+  // Buttons
+  $$('.key').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const input = btn.getAttribute('data-input');
+      const fn = btn.getAttribute('data-fn');
+      const act = btn.getAttribute('data-act');
+      if (input !== null && input !== undefined) appendInput(input);
+      else if (fn) insertFn(fn);
+      else if (act) handleAct(act);
+    });
+    btn.addEventListener('pointerdown', function () {
+      btn.classList.add('pressed');
+      setTimeout(function () { btn.classList.remove('pressed'); }, 150);
+    });
+  });
+
+  // Tabs
+  const sciPad = $('#sciPad');
+  $$('.tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      $$('.tab').forEach(function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      const mode = tab.getAttribute('data-tab');
+      if (sciPad) {
+        if (mode === 'scientific') {
+          sciPad.style.display = '';
+          sciPad.animate(
+            [{ opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'translateY(0)' }],
+            { duration: 380, easing: 'cubic-bezier(.16,1,.3,1)' }
+          );
+        } else {
+          sciPad.style.display = 'none';
+        }
+      }
+    });
+  });
+
+  // Angle toggle
+  const angleToggle = $('#angleToggle');
+  if (angleToggle) {
+    angleToggle.addEventListener('click', function () {
+      angleMode = angleMode === 'DEG' ? 'RAD' : 'DEG';
+      angleToggle.textContent = angleMode;
+      angleToggle.style.background = angleMode === 'RAD' ? '#D7FF3E' : 'transparent';
+      angleToggle.style.color = angleMode === 'RAD' ? '#0B0B0D' : '#D7FF3E';
+      render();
+    });
+  }
+
+  // Clear history
+  const clearHistBtn = $('#clearHistBtn');
+  if (clearHistBtn) {
+    clearHistBtn.addEventListener('click', function () {
+      history = [];
+      saveHistory();
+      renderHistory();
+    });
+  }
+
+  // History click
+  if (historyList) {
+    historyList.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-hist]');
+      if (!btn) return;
+      const idx = parseInt(btn.getAttribute('data-hist'), 10);
+      const item = history[idx];
+      if (!item) return;
+      expr = item.r.replace(/−/g, '-');
+      justEvaluated = false;
+      render();
+    });
+  }
+
+  // Keyboard
+  document.addEventListener('keydown', function (e) {
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+
+    const k = e.key;
+    if (/^[0-9]$/.test(k)) { appendInput(k); }
+    else if (k === '.') { appendInput('.'); }
+    else if (k === '+') { appendInput('+'); }
+    else if (k === '-') { appendInput('−'); }
+    else if (k === '*') { appendInput('×'); }
+    else if (k === '/') { e.preventDefault(); appendInput('÷'); }
+    else if (k === '^') { appendInput('^'); }
+    else if (k === '%') { appendInput('%'); }
+    else if (k === '(' || k === ')') { appendInput(k); }
+    else if (k === '!' ) { appendInput('!'); }
+    else if (k === 'Enter' || k === '=') { e.preventDefault(); doEquals(); }
+    else if (k === 'Backspace') { e.preventDefault(); backspace(); }
+    else if (k === 'Escape') { clearAll(); }
+    else if (k === 'p') { appendInput('π'); }
+    else if (k === 'r') { insertFn('√('); }
+    else { return; }
+
+    const map = {
+      '0': '[data-input="0"]', '1': '[data-input="1"]', '2': '[data-input="2"]',
+      '3': '[data-input="3"]', '4': '[data-input="4"]', '5': '[data-input="5"]',
+      '6': '[data-input="6"]', '7': '[data-input="7"]', '8': '[data-input="8"]',
+      '9': '[data-input="9"]', '.': '[data-input="."]', '+': '[data-input="+"]',
+      '-': '[data-input="−"]', '*': '[data-input="×"]', '/': '[data-input="÷"]',
+      'Enter': '[data-act="equals"]', 'Backspace': '[data-act="back"]'
+    };
+    const sel = map[k];
+    if (sel) {
+      const b = $(sel);
+      if (b) {
+        b.classList.add('pressed');
+        setTimeout(function () { b.classList.remove('pressed'); }, 130);
+      }
+    }
+  });
+
+  renderHistory();
+  updateMem();
+  render();
+
+  /* =========================================================
+     9. UNIT CONVERTER
+  ========================================================== */
+  const UNIT_DATA = {
+    'Panjang': {
+      units: {
+        'Meter (m)': 1, 'Kilometer (km)': 1000, 'Sentimeter (cm)': 0.01, 'Milimeter (mm)': 0.001,
+        'Mil (mi)': 1609.344, 'Kaki (ft)': 0.3048, 'Inci (in)': 0.0254, 'Yard (yd)': 0.9144
+      }
+    },
+    'Massa': {
+      units: {
+        'Kilogram (kg)': 1, 'Gram (g)': 0.001, 'Miligram (mg)': 0.000001,
+        'Ton (t)': 1000, 'Pound (lb)': 0.45359237, 'Ons (oz)': 0.028349523125
+      }
+    },
+    'Suhu': { special: true, units: { 'Celsius (°C)': 'C', 'Fahrenheit (°F)': 'F', 'Kelvin (K)': 'K' } },
+    'Luas': {
+      units: {
+        'Meter persegi (m²)': 1, 'Kilometer persegi (km²)': 1000000, 'Hektar (ha)': 10000,
+        'Sentimeter persegi (cm²)': 0.0001, 'Kaki persegi (ft²)': 0.09290304, 'Acre (ac)': 4046.8564224
+      }
+    },
+    'Waktu': {
+      units: {
+        'Detik (s)': 1, 'Menit (min)': 60, 'Jam (h)': 3600,
+        'Hari (d)': 86400, 'Minggu (w)': 604800, 'Bulan (bln)': 2629800, 'Tahun (th)': 31557600
+      }
+    },
+    'Kecepatan': {
+      units: {
+        'Meter/detik (m/s)': 1, 'Kilometer/jam (km/h)': 0.2777777778,
+        'Mil/jam (mph)': 0.44704, 'Knot (kn)': 0.5144444444
+      }
+    },
+    'Data': {
+      units: {
+        'Byte (B)': 1, 'Kilobyte (KB)': 1024, 'Megabyte (MB)': 1048576,
+        'Gigabyte (GB)': 1073741824, 'Terabyte (TB)': 1099511627776
+      }
+    }
+  };
+
+  const unitCats = $('#unitCats');
+  const fromUnit = $('#fromUnit');
+  const toUnit = $('#toUnit');
+  const fromValue = $('#fromValue');
+  const toValueEl = $('#toValue');
+  const formulaText = $('#formulaText');
+  let currentCat = 'Panjang';
+
+  function populateCats() {
+    if (!unitCats) return;
+    unitCats.innerHTML = Object.keys(UNIT_DATA).map(function (name) {
+      return '<button class="tool-pill px-5 py-2.5 rounded-full border border-ink/14 text-[13px] font-semibold' +
+        (name === currentCat ? ' active' : '') + '" data-cat="' + name + '">' + name + '</button>';
+    }).join('');
+  }
+
+  function populateUnits() {
+    const data = UNIT_DATA[currentCat];
+    if (!data || !fromUnit || !toUnit) return;
+    const names = Object.keys(data.units);
+    fromUnit.innerHTML = names.map(function (n) { return '<option value="' + n + '">' + n + '</option>'; }).join('');
+    toUnit.innerHTML = names.map(function (n) { return '<option value="' + n + '">' + n + '</option>'; }).join('');
+    fromUnit.selectedIndex = 0;
+    toUnit.selectedIndex = Math.min(1, names.length - 1);
+  }
+
+  function convertTemp(v, from, to) {
+    let c;
+    if (from === 'C') c = v;
+    else if (from === 'F') c = (v - 32) * 5 / 9;
+    else c = v - 273.15;
+    if (to === 'C') return c;
+    if (to === 'F') return c * 9 / 5 + 32;
+    return c + 273.15;
+  }
+
+  function doConvert() {
+    const data = UNIT_DATA[currentCat];
+    if (!data || !fromUnit || !toUnit || !fromValue) return;
+    const raw = parseFloat(fromValue.value);
+    const v = isNaN(raw) ? 0 : raw;
+    const f = fromUnit.value;
+    const t = toUnit.value;
+
+    let result;
+    if (data.special) {
+      result = convertTemp(v, data.units[f], data.units[t]);
+    } else {
+      result = v * (data.units[f] / data.units[t]);
+    }
+
+    if (toValueEl) {
+      toValueEl.textContent = Number(result.toFixed(10)).toLocaleString('id-ID', { maximumFractionDigits: 8 });
+      toValueEl.classList.remove('num-flash');
+      void toValueEl.offsetWidth;
+      toValueEl.classList.add('num-flash');
+    }
+
+    if (formulaText) {
+      if (data.special) {
+        formulaText.textContent = 'Rumus suhu: ' + f + ' → ' + t + ' (melalui skala Celsius)';
+      } else {
+        const one = data.units[f] / data.units[t];
+        formulaText.textContent = '1 ' + f + ' = ' + Number(one.toFixed(10)).toLocaleString('id-ID', { maximumFractionDigits: 8 }) + ' ' + t;
+      }
+    }
+  }
+
+  if (unitCats) {
+    populateCats();
+    populateUnits();
+    doConvert();
+
+    unitCats.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-cat]');
+      if (!btn) return;
+      currentCat = btn.getAttribute('data-cat');
+      populateCats();
+      populateUnits();
+      doConvert();
+    });
+
+    [fromUnit, toUnit, fromValue].forEach(function (el) {
+      if (el) el.addEventListener('input', doConvert);
+      if (el) el.addEventListener('change', doConvert);
+    });
+
+    const swapBtn = $('#swapUnits');
+    if (swapBtn) {
+      swapBtn.addEventListener('click', function () {
+        const a = fromUnit.value;
+        const b = toUnit.value;
+        fromUnit.value = b;
+        toUnit.value = a;
+        doConvert();
+        swapBtn.animate(
+          [{ transform: 'rotate(0deg)' }, { transform: 'rotate(180deg)' }],
+          { duration: 420, easing: 'cubic-bezier(.16,1,.3,1)' }
+        );
+      });
+    }
+  }
+
+  /* =========================================================
+     10. TOOLS
+  ========================================================== */
+  // Percentage
+  const pctA = $('#pctA');
+  const pctB = $('#pctB');
+  function updatePct() {
+    if (!pctA || !pctB) return;
+    const a = parseFloat(pctA.value) || 0;
+    const b = parseFloat(pctB.value) || 0;
+    const o1 = $('#pctOut1');
+    const o2 = $('#pctOut2');
+    const o3 = $('#pctOut3');
+    if (o1) o1.textContent = (a / 100 * b).toLocaleString('id-ID', { maximumFractionDigits: 4 });
+    if (o2) o2.textContent = (b === 0 ? 0 : (a / b) * 100).toLocaleString('id-ID', { maximumFractionDigits: 4 }) + '%';
+    if (o3) {
+      const change = a === 0 ? 0 : ((b - a) / a) * 100;
+      o3.textContent = (change >= 0 ? '+' : '') + change.toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '%';
+    }
+  }
+  if (pctA && pctB) {
+    pctA.addEventListener('input', updatePct);
+    pctB.addEventListener('input', updatePct);
+    updatePct();
+  }
+
+  // Loan
+  const loanAmt = $('#loanAmt');
+  const loanRate = $('#loanRate');
+  const loanYear = $('#loanYear');
+
+  function rupiah(n) {
+    return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+  }
+
+  function updateLoan() {
+    if (!loanAmt || !loanRate || !loanYear) return;
+    const P = parseFloat(loanAmt.value);
+    const r = parseFloat(loanRate.value) / 100 / 12;
+    const n = parseFloat(loanYear.value) * 12;
+
+    const emi = r === 0 ? P / n : (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    const total = emi * n;
+    const interest = total - P;
+
+    const amtVal = $('#loanAmtVal');
+    const rateVal = $('#loanRateVal');
+    const yearVal = $('#loanYearVal');
+    const emiOut = $('#emiOut');
+    const principalOut = $('#principalOut');
+    const interestOut = $('#interestOut');
+    const barP = $('#barPrincipal');
+    const barI = $('#barInterest');
+
+    if (amtVal) amtVal.textContent = rupiah(P);
+    if (rateVal) rateVal.textContent = parseFloat(loanRate.value).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+    if (yearVal) yearVal.textContent = loanYear.value + ' tahun';
+    if (emiOut) emiOut.textContent = rupiah(emi);
+    if (principalOut) principalOut.textContent = rupiah(P);
+    if (interestOut) interestOut.textContent = rupiah(interest);
+
+    const pPct = total > 0 ? (P / total) * 100 : 100;
+    if (barP) barP.style.width = pPct.toFixed(2) + '%';
+    if (barI) barI.style.width = (100 - pPct).toFixed(2) + '%';
+  }
+
+  if (loanAmt && loanRate && loanYear) {
+    [loanAmt, loanRate, loanYear].forEach(function (el) {
+      el.addEventListener('input', updateLoan);
+    });
+    updateLoan();
+  }
+
+  // BMI
+  const heightRange = $('#heightRange');
+  const weightRange = $('#weightRange');
+  function updateBmi() {
+    if (!heightRange || !weightRange) return;
+    const h = parseFloat(heightRange.value);
+    const w = parseFloat(weightRange.value);
+    const bmi = w / Math.pow(h / 100, 2);
+
+    const out = $('#bmiOut');
+    const cat = $('#bmiCat');
+    const hv = $('#heightVal');
+    const wv = $('#weightVal');
+
+    if (out) {
+      out.textContent = bmi.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    }
+    if (hv) hv.textContent = h + ' cm';
+    if (wv) wv.textContent = w + ' kg';
+
+    let label = 'Normal', color = '#D7FF3E', ink = '#0B0B0D';
+    if (bmi < 18.5) { label = 'Kurus'; color = '#59A5FF'; ink = '#fff'; }
+    else if (bmi < 25) { label = 'Normal'; color = '#D7FF3E'; ink = '#0B0B0D'; }
+    else if (bmi < 30) { label = 'Berlebih'; color = '#FFA23E'; ink = '#0B0B0D'; }
+    else { label = 'Obesitas'; color = '#FF4B1F'; ink = '#fff'; }
+
+    if (cat) {
+      cat.textContent = label;
+      cat.style.background = color;
+      cat.style.color = ink;
+    }
+  }
+  if (heightRange && weightRange) {
+    heightRange.addEventListener('input', updateBmi);
+    weightRange.addEventListener('input', updateBmi);
+    updateBmi();
+  }
+
+  /* =========================================================
+     11. CHART ANIMATION
+  ========================================================== */
+  const chartLine = $('.chart-line');
+  const chartArea = $('.chart-area');
+  const chartDots = $$('.chart-dot');
+
+  if (chartLine) {
+    try {
+      const len = chartLine.getTotalLength();
+      chartLine.style.setProperty('--len', len);
+    } catch (err) {
+      chartLine.style.setProperty('--len', 1400);
+    }
+
+    if ('IntersectionObserver' in window) {
+      const chartIo = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            chartLine.classList.add('drawn');
+            if (chartArea) chartArea.classList.add('drawn');
+            chartDots.forEach(function (d, i) {
+              setTimeout(function () { d.classList.add('drawn'); }, 700 + i * 190);
+            });
+            chartIo.disconnect();
+          }
+        });
+      }, { threshold: 0.25 });
+      chartIo.observe($('#chartSvg') || chartLine);
+    } else {
+      chartLine.classList.add('drawn');
+      if (chartArea) chartArea.classList.add('drawn');
+      chartDots.forEach(function (d) { d.classList.add('drawn'); });
+    }
+  }
+
+  /* =========================================================
+     12. FAQ ACCORDION
+  ========================================================== */
+  $$('.faq-item').forEach(function (item) {
+    const btn = item.querySelector('.faq-q');
+    const panel = item.querySelector('.faq-a');
+    if (!btn || !panel) return;
+
+    btn.addEventListener('click', function () {
+      const isOpen = item.classList.contains('open');
+
+      $$('.faq-item.open').forEach(function (other) {
+        if (other !== item) {
+          other.classList.remove('open');
+          const p = other.querySelector('.faq-a');
+          if (p) p.style.maxHeight = '0px';
+        }
+      });
+
+      if (isOpen) {
+        item.classList.remove('open');
+        panel.style.maxHeight = '0px';
+      } else {
+        item.classList.add('open');
+        panel.style.maxHeight = panel.scrollHeight + 'px';
+      }
+    });
+  });
+
+  window.addEventListener('resize', function () {
+    const openPanel = $('.faq-item.open .faq-a');
+    if (openPanel) openPanel.style.maxHeight = openPanel.scrollHeight + 'px';
+  });
+
+  /* =========================================================
+     13. NEWSLETTER (demo)
+  ========================================================== */
+  const newsletterForm = $('#newsletterForm');
+  if (newsletterForm) {
+    newsletterForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const input = newsletterForm.querySelector('input');
+      const btn = newsletterForm.querySelector('button');
+      if (btn) {
+        const original = btn.textContent;
+        btn.textContent = 'Terkirim!';
+        btn.style.background = '#0B0B0D';
+        btn.style.color = '#D7FF3E';
+        setTimeout(function () {
+          btn.textContent = original;
+          btn.style.background = '';
+          btn.style.color = '';
+        }, 2200);
+      }
+      if (input) input.value = '';
+    });
+  }
+
+  /* =========================================================
+     14. SMOOTH ANCHOR OFFSET (safety for older browsers)
+  ========================================================== */
+  $$('a[href^="#"]').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      const id = link.getAttribute('href');
+      if (!id || id === '#') return;
+      const target = document.querySelector(id);
+      if (!target) return;
+      e.preventDefault();
+      const top = target.getBoundingClientRect().top + window.pageYOffset - 86;
+      window.scrollTo({ top: top, behavior: 'smooth' });
+    });
+  });
+
+})();
+</script>
+</body>
+</html>
